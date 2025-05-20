@@ -1,6 +1,6 @@
 # China Economic Variables
 
-## Economic Variables (1960-2025)
+## Economic Variables (1960-2030)
 
 |   Year |        GDP |   Consumption |   Government |   Investment |    Exports |    Imports |   Net Exports |   Population |   Labor Force |   Physical Capital |      TFP |   FDI (% of GDP) |   Tax Revenue (% of GDP) |   Human Capital |
 |-------:|-----------:|--------------:|-------------:|-------------:|-----------:|-----------:|--------------:|-------------:|--------------:|-------------------:|---------:|-----------------:|-------------------------:|----------------:|
@@ -70,6 +70,11 @@
 |   2023 | 17794.8    |     6962.84   |   2937.8     |   7487.86    | 3513.24    | 3127.2     |    386.035    |     1410.71  |       774.608 |           89565.1  |   2.3606 |           0.24   |                   7.84   |          2.8233 |
 |   2024 | 18505.5    |     7277.08   |   3049.39    |   7728.98    | 3497.14    | 3211.85    |    285.289    |     1521.25  |       773.129 |           93026.6  |   2.4127 |           0.1518 |                   7.7602 |          2.8487 |
 |   2025 | 19205.4    |     7587.56   |   3158.48    |   7963.13    | 3499.93    | 3155.33    |    344.596    |     1533.93  |       813.845 |           96794.2  |   2.3738 |           0.096  |                   7.6813 |          2.8742 |
+|   2026 | 19894.9    |     7894.31   |   3265.14    |   8190.53    | 3499.44    | 3193.07    |    306.376    |     1546.62  |       818.116 |          100881    |   2.4027 |           0.0608 |                   7.6031 |          2.8996 |
+|   2027 | 20574      |     8197.39   |   3369.42    |   8411.36    | 3499.53    | 3167.87    |    331.656    |     1559.3   |       822.387 |          105303    |   2.4268 |           0.0384 |                   7.5257 |          2.9251 |
+|   2028 | 21242.8    |     8496.84   |   3471.36    |   8625.81    | 3499.51    | 3184.69    |    314.818    |     1571.98  |       826.658 |          110075    |   2.4463 |           0.0243 |                   7.4491 |          2.9505 |
+|   2029 | 21901.6    |     8792.69   |   3571.03    |   8834.08    | 3499.51    | 3173.46    |    326.054    |     1584.66  |       830.929 |          115214    |   2.4614 |           0.0154 |                   7.3733 |          2.976  |
+|   2030 | 22550.5    |     9085      |   3668.47    |   9036.33    | 3499.51    | 3180.96    |    318.553    |     1597.34  |       835.2   |          120738    |   2.4724 |           0.0097 |                   7.2983 |          3.0015 |
 
 ## Notes on Computation
 
@@ -114,31 +119,30 @@ This processed dataset was created by applying the following transformations to 
      - H_t is Human Capital index in year t
      - alpha = 0.33 (capital share parameter)
 
-4. **Extrapolation to 2025**:
+4. **Extrapolation to 2030**:
    Each series was extrapolated using the following methods:
 
    - **ARIMA(1,1,1) model**: 
-     - GDP (2024-2025)
-     - Consumption (2024-2025)
-     - Government (2024-2025)
-     - Investment (2024-2025)
-     - Exports (2024-2025)
-     - Imports (2024-2025)
+     - GDP (2024-2030)
+     - Consumption (2024-2030)
+     - Government (2024-2030)
+     - Investment (2024-2030)
+     - Exports (2024-2030)
+     - Imports (2024-2030)
+     - Net Exports (2024-2030)
    - **Average growth rate of historical data**: 
-     - FDI (% of GDP) (2024-2025)
-     - TAX_pct_GDP (2024-2025)
-     - rgdpo_bn (2024-2025)
-     - rkna (2024-2025)
-     - pl_gdpo (2024-2025)
-     - cgdpo_bn (2024-2025)
-     - K_Y_ratio (2024-2025)
+     - FDI (% of GDP) (2024-2030)
+     - TAX_pct_GDP (2024-2030)
+     - rgdpo_bn (2020-2030)
+     - rkna (2020-2030)
+     - pl_gdpo (2020-2030)
+     - cgdpo_bn (2020-2030)
+     - TFP (2024-2030)
+     - K_Y_ratio (2024-2030)
    - **Linear regression**: 
-     - Population (2024-2025)
-     - Labor Force (2024-2025)
-     - Human Capital (2024-2025)
-   - **Derived calculations**: 
-     - Net Exports (2024-2025): Calculated as Exports - Imports for each projected year
-     - TFP (2024-2025): Recalculated using the Cobb-Douglas formula for each projected year
+     - Population (2024-2030)
+     - Labor Force (2025-2030)
+     - Human Capital (2020-2030)
    - **Investment-based projection**: 
-     - Physical Capital (2024-2025): Projected using the formula K_t = K_{t-1} * (1-delta) + I_t, where delta = 0.05 (5% depreciation rate) and I_t is investment in year t
+     - Physical Capital (2029-2030): Projected using the formula K_t = K_{t-1} * (1-delta) + I_t, where delta = 0.05 (5% depreciation rate) and I_t is investment in year t
 

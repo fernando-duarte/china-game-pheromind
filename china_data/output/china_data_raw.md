@@ -74,6 +74,11 @@ Data sources:
 | 2023 | 17794783039552.00 | 6962835998550.54 | 2937796106673.10 | 7487858134999.47 | 3513236885527.07 | 3127201616050.71 | 0.24 | 7.84 | 1,410,710,000 | 774,607,590 | N/A | N/A | N/A | N/A | N/A |
 | 2024 | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | 773,128,536 | N/A | N/A | N/A | N/A | N/A |
 | 2025 | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A |
+| 2026 | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A |
+| 2027 | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A |
+| 2028 | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A |
+| 2029 | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A |
+| 2030 | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A |
 
 
 **Notes:**
