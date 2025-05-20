@@ -42,6 +42,7 @@ import tempfile
 import logging
 from datetime import datetime
 import zipfile
+import argparse
 
 # Configure logging
 logging.basicConfig(
@@ -178,6 +179,11 @@ def get_pwt_data():
 
 def main():
     """Main function to download and integrate all data."""
+    parser = argparse.ArgumentParser(description="Download and integrate China economic data.")
+    parser.add_argument('--end-year', type=int, default=None, help='Last year to include in the output (default: current year)')
+    args = parser.parse_args()
+    end_year = args.end_year if args.end_year is not None else datetime.now().year
+
     logger.info("Starting China Economic Data Downloader...")
 
     # Create output directory if it doesn't exist
@@ -209,7 +215,7 @@ def main():
     # Download all indicators
     all_data = {}
     for code, name in indicators.items():
-        data = download_wdi_data(code)
+        data = download_wdi_data(code, end_year=end_year)
         if not data.empty:
             # Keep only year and the indicator value
             data = data[['year', code.replace('.', '_')]]
@@ -259,9 +265,8 @@ def main():
     # Sort by year
     merged_data = merged_data.sort_values('year')
 
-    # Create a complete range of years from 1960 to the present
-    current_year = datetime.now().year
-    all_years = pd.DataFrame({'year': range(1960, current_year + 1)})
+    # Create a complete range of years from 1960 to the present or end_year
+    all_years = pd.DataFrame({'year': range(1960, end_year + 1)})
 
     # Merge with the data to ensure all years are included
     merged_data = pd.merge(all_years, merged_data, on='year', how='left')
@@ -299,8 +304,12 @@ def main():
         elif col != 'Year':
             display_data[col] = display_data[col].apply(lambda x: f"{x:.2f}" if not pd.isna(x) else "N/A")
 
-    # Create markdown output using Jinja2 template for header
-    header_template = Template("""# China Economic Data
+    # Prepare table data for Jinja2
+    table_headers = list(display_data.columns)
+    table_rows = display_data.values.tolist()
+
+    # Jinja2 template for the full markdown output
+    markdown_template = Template('''# China Economic Data
 
 Data sources:
 - World Bank World Development Indicators (WDI)
@@ -308,45 +317,33 @@ Data sources:
 
 ## Economic Data (1960-present)
 
-""")
+|{% for h in table_headers %} {{ h }} |{% endfor %}
+|{% for h in table_headers %} --- |{% endfor %}
+{% for row in table_rows %}|{% for cell in row %} {{ cell }} |{% endfor %}
+{% endfor %}
 
-    # Render the header template
-    markdown_output = header_template.render()
-
-    # Use pandas to_markdown to generate the table
-    markdown_output += display_data.to_markdown(index=False)
-
-    # Use Jinja2 template for notes and sources
-    notes_template = Template("""
 **Notes:**
 
 - GDP and its components (Consumption, Government, Investment, Exports, Imports) are in current US dollars
-
 - FDI is shown as a percentage of GDP (net inflows)
-
 - Tax Revenue is shown as a percentage of GDP
-
 - Population and Labor Force are in number of people
-
 - PWT rgdpo: Output-side real GDP at chained PPPs (in millions of 2017 USD)
-
 - PWT rkna: Capital stock at constant 2017 national prices (index: 2017=1)
-
 - PWT pl_gdpo: Price level of GDP (price level of USA GDPo in 2017=1)
-
 - PWT cgdpo: Output-side real GDP at current PPPs (in millions of USD)
-
 - PWT hc: Human capital index, based on years of schooling and returns to education
 
 Sources:
 
 - World Bank WDI data: World Development Indicators, The World Bank. Available at https://databank.worldbank.org/source/world-development-indicators
-
 - PWT data: Feenstra, Robert C., Robert Inklaar and Marcel P. Timmer (2015), "The Next Generation of the Penn World Table" American Economic Review, 105(10), 3150-3182. Available at www.ggdc.net/pwt
-""")
+''')
 
-    # Render the template and add to markdown output
-    markdown_output += notes_template.render()
+    markdown_output = markdown_template.render(
+        table_headers=table_headers,
+        table_rows=table_rows
+    )
 
     # Save the markdown file
     output_file = os.path.join(output_dir, 'china_data_raw.md')

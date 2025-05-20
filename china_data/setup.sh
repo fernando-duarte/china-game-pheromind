@@ -5,6 +5,17 @@
 # Exit on error
 set -e
 
+# Determine the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$SCRIPT_DIR/.."
+
+# If run from root, SCRIPT_DIR will be .../china_data, PROJECT_ROOT will be ...
+# If run from inside china_data, SCRIPT_DIR will be .../china_data, PROJECT_ROOT will be ...
+# If run from inside root, SCRIPT_DIR will be .../china_data, PROJECT_ROOT will be ...
+
+# Set working directory to china_data for all relative paths
+cd "$SCRIPT_DIR"
+
 # Define colors for output
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -49,21 +60,17 @@ fi
 
 # Parse command line arguments
 DEV_MODE=false
-SKIP_RUN=false
 ALPHA=""
 CAPITAL_OUTPUT_RATIO=""
 OUTPUT_FILE=""
 PROCESSOR_ARGS=""
+END_YEAR="2025"
 
 for arg in "$@"
 do
     case $arg in
         --dev)
         DEV_MODE=true
-        shift
-        ;;
-        --skip-run)
-        SKIP_RUN=true
         shift
         ;;
         -a=*|--alpha=*)
@@ -81,14 +88,19 @@ do
         PROCESSOR_ARGS="$PROCESSOR_ARGS -o $OUTPUT_FILE"
         shift
         ;;
+        --end-year=*)
+        END_YEAR="${arg#*=}"
+        PROCESSOR_ARGS="$PROCESSOR_ARGS --end-year=$END_YEAR"
+        shift
+        ;;
         --help)
         echo "Usage: ./setup.sh [OPTIONS]"
         echo "Options:"
         echo "  --dev                           Install development dependencies"
-        echo "  --skip-run                      Skip running the data scripts"
         echo "  -a=VALUE, --alpha=VALUE         Capital share parameter for TFP calculation (default: 0.33)"
         echo "  -k=VALUE, --capital-output-ratio=VALUE  Capital-to-output ratio for base year (default: 3.0)"
         echo "  -o=NAME, --output-file=NAME     Base name for output files (default: china_data_processed)"
+        echo "  --end-year=YYYY                 Last year to process (default: 2025)"
         echo "  --help                          Show this help message"
         exit 0
         ;;
@@ -102,19 +114,17 @@ echo "2. Install required dependencies"
 if [ "$DEV_MODE" = true ]; then
     echo "   (Including development dependencies)"
 fi
-if [ "$SKIP_RUN" = false ]; then
-    echo "3. Run the data downloader and processor scripts"
-    if [ -n "$PROCESSOR_ARGS" ]; then
-        echo "   With custom processor arguments: $PROCESSOR_ARGS"
-        if [ -n "$ALPHA" ]; then
-            echo "   - Alpha: $ALPHA"
-        fi
-        if [ -n "$CAPITAL_OUTPUT_RATIO" ]; then
-            echo "   - Capital-output ratio: $CAPITAL_OUTPUT_RATIO"
-        fi
-        if [ -n "$OUTPUT_FILE" ]; then
-            echo "   - Output file base name: $OUTPUT_FILE"
-        fi
+echo "3. Run the data downloader and processor scripts"
+if [ -n "$PROCESSOR_ARGS" ]; then
+    echo "   With custom processor arguments: $PROCESSOR_ARGS"
+    if [ -n "$ALPHA" ]; then
+        echo "   - Alpha: $ALPHA"
+    fi
+    if [ -n "$CAPITAL_OUTPUT_RATIO" ]; then
+        echo "   - Capital-output ratio: $CAPITAL_OUTPUT_RATIO"
+    fi
+    if [ -n "$OUTPUT_FILE" ]; then
+        echo "   - Output file base name: $OUTPUT_FILE"
     fi
 fi
 
@@ -159,21 +169,19 @@ fi
 
 echo -e "\n${GREEN}Setup complete!${NC}"
 
-# Run the scripts automatically
-if [ "$SKIP_RUN" = false ]; then
-    echo -e "\n${YELLOW}Running China Economic Data Downloader...${NC}"
-    $PYTHON_CMD china_data_downloader.py
+# Always run the scripts automatically (no SKIP_RUN option)
+echo -e "\n${YELLOW}Running China Economic Data Downloader...${NC}"
+$PYTHON_CMD china_data_downloader.py --end-year=$END_YEAR
 
-    echo -e "\n${YELLOW}Running China Economic Data Processor...${NC}"
-    if [ -n "$PROCESSOR_ARGS" ]; then
-        echo "Using custom processor arguments: $PROCESSOR_ARGS"
-        $PYTHON_CMD china_data_processor.py $PROCESSOR_ARGS
-    else
-        $PYTHON_CMD china_data_processor.py
-    fi
-
-    echo -e "\n${GREEN}All done! Output files are in the 'output' directory.${NC}"
+echo -e "\n${YELLOW}Running China Economic Data Processor...${NC}"
+if [ -n "$PROCESSOR_ARGS" ]; then
+    echo "Using custom processor arguments: $PROCESSOR_ARGS"
+    $PYTHON_CMD china_data_processor.py $PROCESSOR_ARGS --end-year=$END_YEAR
+else
+    $PYTHON_CMD china_data_processor.py --end-year=$END_YEAR
 fi
+
+echo -e "\n${GREEN}All done! Output files are in the 'output' directory.${NC}"
 
 # Only deactivate if we activated it ourselves
 if [ "$ALREADY_IN_VENV" = false ]; then
