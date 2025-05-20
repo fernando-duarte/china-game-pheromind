@@ -30,16 +30,24 @@ Extrapolation methods used:
 # Standard library imports
 import os
 import argparse
+import logging
 from datetime import datetime
 
 # Third-party imports
 import numpy as np
 import pandas as pd
-import pandas_datareader.wb as wb
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
 from sklearn.linear_model import LinearRegression
 from tabulate import tabulate
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
 
 # Add to_markdown method to pandas DataFrame if it doesn't exist
 if not hasattr(pd.DataFrame, 'to_markdown'):
@@ -104,6 +112,7 @@ def load_raw_data(data_dir=".", input_file="china_data_raw.md"):
         'Exports (USD)': 'X_USD',
         'Imports (USD)': 'M_USD',
         'FDI (% of GDP)': 'FDI_pct_GDP',
+        'Tax Revenue (% of GDP)': 'TAX_pct_GDP',
         'Population': 'POP',
         'Labor Force': 'LF',
         'PWT rgdpo': 'rgdpo',
@@ -136,7 +145,7 @@ def load_raw_data(data_dir=".", input_file="china_data_raw.md"):
                     processed_row.append(int(value))
                 elif value == 'N/A':
                     processed_row.append(np.nan)
-                elif renamed_header[j] == 'FDI_pct_GDP':  # FDI (% of GDP)
+                elif renamed_header[j] in ['FDI_pct_GDP', 'TAX_pct_GDP']:  # Percentage indicators
                     processed_row.append(float(value) if value != 'N/A' else np.nan)
                 elif renamed_header[j] in ['POP', 'LF']:  # Population, Labor Force
                     processed_row.append(int(value.replace(',', '')) if value != 'N/A' else np.nan)
@@ -296,56 +305,50 @@ def project_capital_stock(processed_data):
 
     # Find the last year with available capital stock data
     last_year_with_data = k_data.dropna(subset=['K_USD_bn']).year.max()
-    print(f"Last year with capital stock data: {last_year_with_data}")
 
-    # If we already have data up to the current year, no need to project
-    current_year = datetime.now().year
-    if last_year_with_data >= current_year:
+    # If we already have data up to 2025, no need to project
+    if last_year_with_data >= 2025:
         return k_data
 
-    # Get investment data for projection
+    # Get the last known capital stock value
+    last_k = k_data.loc[k_data.year == last_year_with_data, 'K_USD_bn'].values[0]
+
+    # Depreciation rate
+    δ = 0.05  # 5% annual depreciation
+
+    # Project capital stock using investment data from processed_data
     try:
-        # Get nominal gross capital formation from WDI (current USD bn)
-        inv = wb.download("CN", "NE.GDI.TOTL.CD", last_year_with_data + 1, current_year)["NE.GDI.TOTL.CD"].div(1e9)
-        inv.index = inv.index.get_level_values("year").astype(int)
+        # Get investment data from processed_data
+        inv_data = processed_data[['year', 'I_USD_bn']].copy().dropna()
 
-        # Drop NaN values (years where data is not available)
-        inv = inv.dropna()
+        # Calculate average growth rate from the last 3-4 years of investment data
+        last_inv_years = sorted(inv_data.year.tolist())[-4:]
+        last_inv_values = [inv_data.loc[inv_data.year == y, 'I_USD_bn'].values[0] for y in last_inv_years]
+        inv_growth_rates = [(last_inv_values[i] / last_inv_values[i-1] - 1) for i in range(1, len(last_inv_values))]
+        avg_inv_growth = sum(inv_growth_rates) / len(inv_growth_rates)
 
-        if inv.empty:
-            print("No investment data available for projection.")
-            return k_data
+        # Project investment for future years
+        years_to_project = list(range(last_year_with_data + 1, 2026))
+        projected_inv = {}
 
-        # Get the last known capital stock value
-        last_k = k_data.loc[k_data.year == last_year_with_data, 'K_USD_bn'].values[0]
+        # Get the last known investment value
+        last_inv_year = max(inv_data.year)
+        last_inv_value = inv_data.loc[inv_data.year == last_inv_year, 'I_USD_bn'].values[0]
 
-        # Depreciation rate
-        δ = 0.05  # 5% annual depreciation
+        # Project investment for future years
+        for y in years_to_project:
+            years_from_last_inv = y - last_inv_year
+            projected_inv[y] = last_inv_value * (1 + avg_inv_growth) ** years_from_last_inv
 
         # Project capital stock
         proj = {}
         proj[last_year_with_data] = last_k
 
-        # Process years with available investment data
-        available_years = sorted(inv.index.tolist())
-        for y in available_years:
-            if y > last_year_with_data:
-                proj[y] = round(proj[y-1] * (1-δ) + inv.loc[y], 2)
-
-        # For years without investment data, use average growth rate
-        last_available_year = max(available_years)
-        if last_available_year < current_year:
-            # Calculate average growth rate from the last 3 years
-            if len(proj) >= 4:  # Need at least 4 years to calculate 3 growth rates
-                years = sorted(list(proj.keys()))[-4:]
-                growth_rates = [(proj[years[i]] / proj[years[i-1]] - 1) for i in range(1, len(years))]
-                avg_growth = sum(growth_rates) / len(growth_rates)
-            else:
-                avg_growth = 0.03  # Default 3% growth
-
-            # Project for remaining years
-            for y in range(last_available_year + 1, current_year + 1):
-                proj[y] = round(proj[y-1] * (1 + avg_growth), 2)
+        for y in years_to_project:
+            # Use projected investment
+            inv_value = projected_inv[y]
+            # K_t = (1-δ) * K_{t-1} + I_t
+            proj[y] = round((1-δ) * proj[y-1] + inv_value, 2)
 
         # Create DataFrame with projections
         proj_df = pd.DataFrame(list(proj.items()), columns=['year', 'K_USD_bn'])
@@ -363,12 +366,30 @@ def project_capital_stock(processed_data):
         return k_data
 
     except Exception as e:
-        print(f"Error projecting capital stock: {e}")
-        return k_data
+        # Fallback to simple growth rate method if the above fails
+        logger.warning(f"Investment-based capital stock projection failed, falling back to average growth rate. Error: {str(e)}")
+        try:
+            # Calculate average growth rate from the last 3 years of capital stock data
+            k_years = sorted(k_data.dropna(subset=['K_USD_bn']).year.tolist())[-4:]
+            k_values = [k_data.loc[k_data.year == y, 'K_USD_bn'].values[0] for y in k_years]
+            k_growth_rates = [(k_values[i] / k_values[i-1] - 1) for i in range(1, len(k_values))]
+            avg_k_growth = sum(k_growth_rates) / len(k_growth_rates)
+
+            # Project for future years
+            years_to_project = list(range(last_year_with_data + 1, 2026))
+            for y in years_to_project:
+                years_from_last = y - last_year_with_data
+                projected_value = last_k * (1 + avg_k_growth) ** years_from_last
+                k_data.loc[k_data.year == y, 'K_USD_bn'] = round(projected_value, 2)
+
+            return k_data
+        except Exception as e:
+            logger.warning(f"Average growth rate fallback for capital stock projection also failed. Error: {str(e)}")
+            return k_data
 
 def project_human_capital(processed_data):
     """
-    Project human capital data using trend extrapolation.
+    Project human capital data using exponential smoothing.
 
     Parameters:
     -----------
@@ -385,56 +406,84 @@ def project_human_capital(processed_data):
 
     # Find the last year with available human capital data
     last_year_with_data = hc_data.dropna(subset=['hc']).year.max()
-    print(f"Last year with human capital data: {last_year_with_data}")
 
-    # If we already have data up to the current year, no need to project
-    current_year = datetime.now().year
-    if last_year_with_data >= current_year:
+    # If we already have data up to 2025, no need to project
+    if last_year_with_data >= 2025:
         return hc_data
+
+    # Get the historical data for exponential smoothing
+    historical = hc_data.dropna(subset=['hc'])
+
+    # Get all years that need projection (including years between last_year_with_data and 2025)
+    all_years = list(range(1960, 2026))
+    years_to_project = [y for y in all_years if y > last_year_with_data or
+                        (y in hc_data['year'].values and pd.isna(hc_data.loc[hc_data['year'] == y, 'hc'].values[0]))]
 
     try:
-        # Get the last 5 years of data for trend extrapolation
-        last_5_years = hc_data[(hc_data.year >= last_year_with_data - 4) & (hc_data.year <= last_year_with_data)]
-        last_5_years = last_5_years.dropna(subset=['hc'])
+        # Try exponential smoothing first
+        model = ExponentialSmoothing(historical['hc'], trend='add', seasonal=None)
+        model_fit = model.fit()
 
-        if len(last_5_years) < 2:
-            print("Not enough data for human capital projection.")
-            return hc_data
+        # Project for all years that need projection
+        forecast_steps = max(years_to_project) - last_year_with_data
+        forecast = model_fit.forecast(steps=forecast_steps)
 
-        # Calculate average annual growth rate
-        first_year = last_5_years.year.min()
-        last_year = last_5_years.year.max()
-        first_value = last_5_years.loc[last_5_years.year == first_year, 'hc'].values[0]
-        last_value = last_5_years.loc[last_5_years.year == last_year, 'hc'].values[0]
-
-        years_diff = last_year - first_year
-        avg_growth = (last_value / first_value) ** (1 / years_diff) - 1
-
-        # Project human capital for future years
-        proj = {}
-        proj[last_year_with_data] = hc_data.loc[hc_data.year == last_year_with_data, 'hc'].values[0]
-
-        for y in range(last_year_with_data + 1, current_year + 1):
-            proj[y] = round(proj[y-1] * (1 + avg_growth), 2)
+        # Create a dictionary to map years to forecasted values
+        forecast_dict = {}
+        for i, year in enumerate(range(last_year_with_data + 1, last_year_with_data + forecast_steps + 1)):
+            forecast_dict[year] = round(forecast[i], 4)
 
         # Create DataFrame with projections
-        proj_df = pd.DataFrame(list(proj.items()), columns=['year', 'hc'])
+        proj_rows = []
+        for year in years_to_project:
+            if year > last_year_with_data:
+                proj_rows.append({'year': year, 'hc': forecast_dict[year]})
 
-        # Merge with original data
-        hc_data = pd.merge(hc_data, proj_df, on='year', how='outer', suffixes=('', '_proj'))
+        if proj_rows:
+            proj_df = pd.DataFrame(proj_rows)
 
-        # Use projected values where original data is missing
-        mask = hc_data['hc'].isna()
-        hc_data.loc[mask, 'hc'] = hc_data.loc[mask, 'hc_proj']
+            # Merge with original data
+            hc_data = pd.merge(hc_data, proj_df, on='year', how='outer', suffixes=('', '_proj'))
 
-        # Drop the projection column
-        hc_data = hc_data.drop(columns=['hc_proj'])
+            # Use projected values where original data is missing
+            for _, row in proj_df.iterrows():
+                year = row['year']
+                hc_value = row['hc']
+                hc_data.loc[hc_data['year'] == year, 'hc'] = hc_value
 
         return hc_data
-
     except Exception as e:
-        print(f"Error projecting human capital: {e}")
-        return hc_data
+        # Fallback to linear regression method
+        logger.warning(f"Exponential smoothing failed for human capital projection, falling back to linear regression. Error: {str(e)}")
+        try:
+            # Create a linear regression model for human capital
+            X = historical['year'].values.reshape(-1, 1)
+            y = historical['hc'].values
+            model = LinearRegression()
+            model.fit(X, y)
+
+            # Project for all years that need projection
+            proj_rows = []
+            for year in years_to_project:
+                predicted_value = model.predict([[year]])[0]
+                proj_rows.append({'year': year, 'hc': round(predicted_value, 4)})
+
+            if proj_rows:
+                proj_df = pd.DataFrame(proj_rows)
+
+                # Merge with original data
+                hc_data = pd.merge(hc_data, proj_df, on='year', how='outer', suffixes=('', '_proj'))
+
+                # Use projected values where original data is missing
+                for _, row in proj_df.iterrows():
+                    year = row['year']
+                    hc_value = row['hc']
+                    hc_data.loc[hc_data['year'] == year, 'hc'] = hc_value
+
+            return hc_data
+        except Exception as e:
+            logger.warning(f"Linear regression also failed for human capital projection. Error: {str(e)}")
+            return hc_data
 
 def calculate_tfp(data, alpha=1/3):
     """
@@ -460,11 +509,35 @@ def calculate_tfp(data, alpha=1/3):
     df = data.copy()
 
     # Check if we have all the necessary data
-    required_cols = ['GDP_USD_bn', 'K_USD_bn', 'LF_mn', 'hc']
+    required_cols = ['GDP_USD_bn', 'K_USD_bn', 'LF_mn']
     if not all(col in df.columns for col in required_cols):
-        print("Warning: Missing required data for TFP calculation")
         df['TFP'] = np.nan
         return df
+
+    # Ensure we have human capital data
+    if 'hc' not in df.columns:
+        df['hc'] = np.nan
+
+    # Fill missing human capital values using linear interpolation and extrapolation
+    if df['hc'].isna().any():
+        # Get the available human capital data
+        hc_data = df[['year', 'hc']].dropna(subset=['hc'])
+
+        if len(hc_data) >= 2:
+            # Create a linear regression model for human capital
+            X = hc_data['year'].values.reshape(-1, 1)
+            y = hc_data['hc'].values
+            model = LinearRegression()
+            model.fit(X, y)
+
+            # Predict human capital for years with missing values
+            missing_years = df[df['hc'].isna()]['year'].values
+            if len(missing_years) > 0:
+                predictions = model.predict(missing_years.reshape(-1, 1))
+
+                # Update the missing values
+                for i, year in enumerate(missing_years):
+                    df.loc[df['year'] == year, 'hc'] = round(predictions[i], 4)
 
     # Calculate TFP
     try:
@@ -477,8 +550,7 @@ def calculate_tfp(data, alpha=1/3):
         # Round to 4 decimal places
         df['TFP'] = df['TFP'].round(4)
 
-    except Exception as e:
-        print(f"Error calculating TFP: {e}")
+    except Exception:
         df['TFP'] = np.nan
 
     return df
@@ -500,21 +572,41 @@ def extrapolate_series_to_2025(data):
 
     Returns:
     --------
-    pandas.DataFrame
-        DataFrame with extrapolated data to 2025
+    tuple
+        (DataFrame with extrapolated data to 2025,
+         Dictionary tracking which method was actually used for each variable)
     """
     # Make a copy of the data
     df = data.copy()
 
+    # Dictionary to track which method was actually used for each variable
+    extrapolation_methods_used = {}
+
     # Get the maximum year in the data
     max_year = df.year.max()
 
-    # If we already have data up to 2025, no need to extrapolate
+    # Check if we have complete data up to 2025
     if max_year >= 2025:
-        return df
+        # Check if we have missing values for key variables in 2024 or 2025
+        missing_values = False
+        key_variables = ['GDP_USD_bn', 'C_USD_bn', 'G_USD_bn', 'I_USD_bn', 'X_USD_bn', 'M_USD_bn', 'POP_mn', 'LF_mn']
 
-    # Years to extrapolate
-    years_to_add = list(range(max_year + 1, 2026))
+        for year in [2024, 2025]:
+            for var in key_variables:
+                if var in df.columns and pd.isna(df.loc[df.year == year, var].values[0]):
+                    missing_values = True
+                    break
+            if missing_values:
+                break
+
+        if not missing_values:
+            return df
+        else:
+            # We'll still need to extrapolate years that already exist in the dataframe
+            years_to_add = [2024, 2025]
+    else:
+        # Years to extrapolate
+        years_to_add = list(range(max_year + 1, 2026))
 
     # Create a DataFrame for the new years
     new_years_df = pd.DataFrame({'year': years_to_add})
@@ -530,6 +622,7 @@ def extrapolate_series_to_2025(data):
     gdp_components = ['GDP_USD_bn', 'C_USD_bn', 'G_USD_bn', 'I_USD_bn', 'X_USD_bn', 'M_USD_bn', 'NX_USD_bn']
     demographic = ['POP_mn', 'LF_mn']
     human_capital = ['hc']
+    # FDI and other variables will use the default average growth rate method
 
     # Extrapolate each column
     for col in cols_to_extrapolate:
@@ -539,6 +632,22 @@ def extrapolate_series_to_2025(data):
 
         # Get the historical data for this column
         historical = df[df.year <= max_year][[col]].dropna()
+
+        if len(historical) == 0:
+            continue
+
+        # Find the last year with data for this column
+        last_year_with_data = historical.index[-1]
+        last_year_value = df.loc[last_year_with_data, 'year']
+
+        # If we already have data up to 2025 for this column, skip extrapolation
+        if last_year_value >= 2025:
+            continue
+
+        # Determine which years need extrapolation for this column
+        years_to_extrapolate = [year for year in years_to_add if year > last_year_value]
+        if not years_to_extrapolate:
+            continue
 
         # If we have less than 5 years of data, use average growth rate
         if len(historical) < 5:
@@ -553,39 +662,58 @@ def extrapolate_series_to_2025(data):
 
             # Project using average growth rate
             last_value = historical.iloc[-1].values[0]
-            for i, year in enumerate(years_to_add):
-                projected_value = last_value * (1 + avg_growth) ** (i + 1)
+            for i, year in enumerate(years_to_extrapolate):
+                years_from_last = year - last_year_value
+                projected_value = last_value * (1 + avg_growth) ** years_from_last
                 df.loc[df.year == year, col] = round(projected_value, 4)
+
+            # Track the method used
+            extrapolation_methods_used[col] = "Average growth rate"
 
         # For GDP and components, use ARIMA
         elif col in gdp_components:
             try:
                 # Fit ARIMA model
+                logger.info(f"Attempting ARIMA model for {col}")
                 model = ARIMA(historical, order=(1, 1, 1))
                 model_fit = model.fit()
 
                 # Forecast
-                forecast = model_fit.forecast(steps=len(years_to_add))
+                forecast = model_fit.forecast(steps=len(years_to_extrapolate))
+
+                # Convert forecast to list to ensure we can access by index
+                forecast_values = forecast.tolist() if hasattr(forecast, 'tolist') else list(forecast)
+
+                # Log the forecast values
+                logger.info(f"ARIMA forecast for {col}: {forecast_values}")
 
                 # Update the DataFrame
-                for i, year in enumerate(years_to_add):
-                    df.loc[df.year == year, col] = round(max(0, forecast[i]), 4)
-            except:
+                for i, year in enumerate(years_to_extrapolate):
+                    df.loc[df.year == year, col] = round(max(0, forecast_values[i]), 4)
+
+                # Track the method used
+                extrapolation_methods_used[col] = "ARIMA(1,1,1)"
+            except Exception as e:
                 # Fallback to average growth rate if ARIMA fails
+                logger.warning(f"ARIMA failed for {col}, falling back to average growth rate. Error: {str(e)}")
                 last_years = historical.iloc[-4:].values.flatten()
                 growth_rates = [(last_years[i] / last_years[i-1]) - 1 for i in range(1, len(last_years))]
                 avg_growth = sum(growth_rates) / len(growth_rates)
 
                 last_value = historical.iloc[-1].values[0]
-                for i, year in enumerate(years_to_add):
-                    projected_value = last_value * (1 + avg_growth) ** (i + 1)
+                for i, year in enumerate(years_to_extrapolate):
+                    years_from_last = year - last_year_value
+                    projected_value = last_value * (1 + avg_growth) ** years_from_last
                     df.loc[df.year == year, col] = round(projected_value, 4)
+
+                # Track the method used
+                extrapolation_methods_used[col] = "Average growth rate"
 
         # For population and labor force, use linear regression
         elif col in demographic:
             try:
                 # Prepare data for linear regression
-                X = historical.index.values.reshape(-1, 1)
+                X = np.arange(len(historical)).reshape(-1, 1)
                 y = historical.values.flatten()
 
                 # Fit linear regression model
@@ -593,22 +721,32 @@ def extrapolate_series_to_2025(data):
                 model.fit(X, y)
 
                 # Predict for future years
-                X_future = np.array(range(len(historical), len(historical) + len(years_to_add))).reshape(-1, 1)
+                # Calculate how many steps ahead we need to predict
+                steps_ahead = [year - last_year_value for year in years_to_extrapolate]
+                X_future = np.array(range(len(historical), len(historical) + len(steps_ahead))).reshape(-1, 1)
                 predictions = model.predict(X_future)
 
                 # Update the DataFrame
-                for i, year in enumerate(years_to_add):
+                for i, year in enumerate(years_to_extrapolate):
                     df.loc[df.year == year, col] = round(max(0, predictions[i]), 4)
-            except:
+
+                # Track the method used
+                extrapolation_methods_used[col] = "Linear regression"
+            except Exception as e:
                 # Fallback to average growth rate
+                logger.warning(f"Linear regression failed for {col}, falling back to average growth rate. Error: {str(e)}")
                 last_years = historical.iloc[-4:].values.flatten()
                 growth_rates = [(last_years[i] / last_years[i-1]) - 1 for i in range(1, len(last_years))]
                 avg_growth = sum(growth_rates) / len(growth_rates)
 
                 last_value = historical.iloc[-1].values[0]
-                for i, year in enumerate(years_to_add):
-                    projected_value = last_value * (1 + avg_growth) ** (i + 1)
+                for i, year in enumerate(years_to_extrapolate):
+                    years_from_last = year - last_year_value
+                    projected_value = last_value * (1 + avg_growth) ** years_from_last
                     df.loc[df.year == year, col] = round(projected_value, 4)
+
+                # Track the method used
+                extrapolation_methods_used[col] = "Average growth rate"
 
         # For human capital, use exponential smoothing
         elif col in human_capital:
@@ -618,36 +756,160 @@ def extrapolate_series_to_2025(data):
                 model_fit = model.fit()
 
                 # Forecast
-                forecast = model_fit.forecast(steps=len(years_to_add))
+                forecast = model_fit.forecast(steps=len(years_to_extrapolate))
 
                 # Update the DataFrame
-                for i, year in enumerate(years_to_add):
+                for i, year in enumerate(years_to_extrapolate):
                     df.loc[df.year == year, col] = round(max(0, forecast[i]), 4)
-            except:
+
+                # Track the method used
+                extrapolation_methods_used[col] = "Exponential smoothing"
+            except Exception as e:
                 # Fallback to average growth rate
+                logger.warning(f"Exponential smoothing failed for {col}, falling back to average growth rate. Error: {str(e)}")
                 last_years = historical.iloc[-4:].values.flatten()
                 growth_rates = [(last_years[i] / last_years[i-1]) - 1 for i in range(1, len(last_years))]
                 avg_growth = sum(growth_rates) / len(growth_rates)
 
                 last_value = historical.iloc[-1].values[0]
-                for i, year in enumerate(years_to_add):
-                    projected_value = last_value * (1 + avg_growth) ** (i + 1)
+                for i, year in enumerate(years_to_extrapolate):
+                    years_from_last = year - last_year_value
+                    projected_value = last_value * (1 + avg_growth) ** years_from_last
                     df.loc[df.year == year, col] = round(projected_value, 4)
+
+                # Track the method used
+                extrapolation_methods_used[col] = "Average growth rate"
 
         # For other series, use average growth rate
         else:
-            last_years = historical.iloc[-4:].values.flatten()
-            growth_rates = [(last_years[i] / last_years[i-1]) - 1 for i in range(1, len(last_years))]
-            avg_growth = sum(growth_rates) / len(growth_rates)
+            if len(historical) >= 4:
+                last_years = historical.iloc[-4:].values.flatten()
+                growth_rates = [(last_years[i] / last_years[i-1]) - 1 for i in range(1, len(last_years))]
+                avg_growth = sum(growth_rates) / len(growth_rates)
+            else:
+                # Use all available data if less than 4 years
+                last_years = historical.values.flatten()
+                if len(last_years) > 1:
+                    growth_rates = [(last_years[i] / last_years[i-1]) - 1 for i in range(1, len(last_years))]
+                    avg_growth = sum(growth_rates) / len(growth_rates)
+                else:
+                    avg_growth = 0.03  # Default 3% growth
 
             last_value = historical.iloc[-1].values[0]
-            for i, year in enumerate(years_to_add):
-                projected_value = last_value * (1 + avg_growth) ** (i + 1)
+            for i, year in enumerate(years_to_extrapolate):
+                years_from_last = year - last_year_value
+                projected_value = last_value * (1 + avg_growth) ** years_from_last
                 df.loc[df.year == year, col] = round(projected_value, 4)
 
-    return df
+            # Track the method used
+            extrapolation_methods_used[col] = "Average growth rate"
 
-def create_markdown_table(data, output_path, alpha=1/3, capital_output_ratio=3.0, input_file="china_data_raw.md"):
+    # Calculate Net Exports for extrapolated years if Exports and Imports are available
+    for year in years_to_add:
+        if 'X_USD_bn' in df.columns and 'M_USD_bn' in df.columns:
+            x_value = df.loc[df.year == year, 'X_USD_bn'].values[0]
+            m_value = df.loc[df.year == year, 'M_USD_bn'].values[0]
+            if not pd.isna(x_value) and not pd.isna(m_value):
+                df.loc[df.year == year, 'NX_USD_bn'] = round(x_value - m_value, 4)
+
+    # Ensure all variables are extrapolated through 2025
+    # Define key variables that must be extrapolated
+    key_variables = ['GDP_USD_bn', 'C_USD_bn', 'G_USD_bn', 'I_USD_bn', 'X_USD_bn', 'M_USD_bn',
+                     'POP_mn', 'LF_mn', 'FDI_pct_GDP', 'TAX_pct_GDP', 'hc', 'K_USD_bn']
+
+    for year in years_to_add:
+        for col in key_variables:
+            if col in df.columns and pd.isna(df.loc[df.year == year, col].values[0]):
+                # Try to extrapolate using average growth rate from the last available data
+                last_valid_data = df[df.year < year][[col]].dropna()
+                if not last_valid_data.empty:
+                    last_value = last_valid_data.iloc[-1].values[0]
+                    last_year = df.loc[last_valid_data.index[-1], 'year']
+                    years_diff = year - last_year
+
+                    # Set default growth rates based on variable type
+                    if col in ['GDP_USD_bn', 'C_USD_bn', 'G_USD_bn', 'I_USD_bn', 'X_USD_bn', 'M_USD_bn']:
+                        default_growth = 0.05  # 5% for economic variables
+                    elif col in ['POP_mn']:
+                        default_growth = 0.005  # 0.5% for population
+                    elif col in ['LF_mn']:
+                        default_growth = 0.01  # 1% for labor force
+                    elif col in ['hc']:
+                        default_growth = 0.01  # 1% for human capital
+                    elif col in ['K_USD_bn']:
+                        default_growth = 0.04  # 4% for capital stock
+                    else:
+                        default_growth = 0.03  # 3% default
+
+                    # Try to calculate growth rate from historical data
+                    historical = df[df.year <= max_year][[col]].dropna()
+                    if len(historical) >= 2:
+                        # Use up to 5 years of historical data, but at least 2
+                        n_years = min(5, len(historical))
+                        last_years = historical.iloc[-n_years:].values.flatten()
+                        if len(last_years) > 1:
+                            growth_rates = [(last_years[i] / last_years[i-1]) - 1 for i in range(1, len(last_years))]
+                            avg_growth = sum(growth_rates) / len(growth_rates)
+                        else:
+                            avg_growth = default_growth
+                    else:
+                        avg_growth = default_growth
+
+                    projected_value = last_value * (1 + avg_growth) ** years_diff
+                    df.loc[df.year == year, col] = round(projected_value, 4)
+
+    # Recalculate Net Exports for extrapolated years
+    for year in years_to_add:
+        if all(col in df.columns for col in ['X_USD_bn', 'M_USD_bn']):
+            x_value = df.loc[df.year == year, 'X_USD_bn'].values[0]
+            m_value = df.loc[df.year == year, 'M_USD_bn'].values[0]
+            if not pd.isna(x_value) and not pd.isna(m_value):
+                df.loc[df.year == year, 'NX_USD_bn'] = round(x_value - m_value, 4)
+
+    # Add tracking for physical capital (K_USD_bn) which is handled by project_capital_stock
+    if 'K_USD_bn' in df.columns:
+        # Check if there are any years after 2019 (PWT data ends in 2019)
+        if any(year > 2019 for year in df['year']):
+            extrapolation_methods_used['K_USD_bn'] = "Investment-based projection"
+
+    # Add tracking for derived variables
+    extrapolation_methods_used['NX_USD_bn'] = "Derived calculation"
+    extrapolation_methods_used['TFP'] = "Derived calculation"
+
+    # Add tracking for human capital if it's not already tracked
+    if 'hc' not in extrapolation_methods_used:
+        # Check if we have human capital data
+        if 'hc' in df.columns and not df['hc'].isna().all():
+            # Find the last year with data
+            last_year_with_data = None
+            for year in range(2023, 2018, -1):
+                if year in df['year'].values:
+                    if not pd.isna(df.loc[df['year'] == year, 'hc'].values[0]):
+                        last_year_with_data = year
+                        break
+
+            if last_year_with_data is not None:
+                # Don't modify last_years dictionary directly
+                extrapolation_methods_used['hc'] = "Linear regression"
+
+    # Add special handling for TFP description
+    if 'TFP' in extrapolation_methods_used and extrapolation_methods_used['TFP'] == "Derived calculation":
+        # Find the years for TFP
+        tfp_years = ""
+        if 'TFP' in last_years and last_years['TFP'] is not None:
+            start_year = last_years['TFP'] + 1
+            end_year = 2025
+            tfp_years = f" ({start_year}-{end_year})"
+        else:
+            tfp_years = " (2024-2025)"
+
+        # Create a special key for TFP with description
+        extrapolation_methods_used.pop('TFP')
+        extrapolation_methods_used['TFP' + tfp_years] = "Derived calculation"
+
+    return df, extrapolation_methods_used
+
+def create_markdown_table(data, output_path, extrapolation_methods_used, alpha=1/3, capital_output_ratio=3.0, input_file="china_data_raw.md"):
     """
     Create a markdown file with a table of the processed data and notes on computation.
 
@@ -657,6 +919,8 @@ def create_markdown_table(data, output_path, alpha=1/3, capital_output_ratio=3.0
         DataFrame with the processed data
     output_path : str
         Path to save the markdown file
+    extrapolation_methods_used : dict
+        Dictionary mapping variable names to the extrapolation methods actually used
     alpha : float
         Capital share parameter used in TFP calculation
     capital_output_ratio : float
@@ -664,6 +928,23 @@ def create_markdown_table(data, output_path, alpha=1/3, capital_output_ratio=3.0
     input_file : str
         Name of the input file containing raw data
     """
+    # Define column mapping for determining extrapolated years
+    column_mapping = {
+        'Year': 'year',
+        'GDP': 'GDP_USD_bn',
+        'Consumption': 'C_USD_bn',
+        'Government': 'G_USD_bn',
+        'Investment': 'I_USD_bn',
+        'Exports': 'X_USD_bn',
+        'Imports': 'M_USD_bn',
+        'Net Exports': 'NX_USD_bn',
+        'Population': 'POP_mn',
+        'Labor Force': 'LF_mn',
+        'Physical Capital': 'K_USD_bn',
+        'TFP': 'TFP',
+        'FDI (% of GDP)': 'FDI_pct_GDP',
+        'Human Capital': 'hc'
+    }
     # Create the markdown content
     markdown_content = "# China Economic Variables\n\n"
 
@@ -702,23 +983,102 @@ def create_markdown_table(data, output_path, alpha=1/3, capital_output_ratio=3.0
     markdown_content += "     - pl_gdpo_2017 is the price level of GDP in 2017 (from PWT)\n\n"
     markdown_content += "   - **TFP (Total Factor Productivity)**: Calculated using the Cobb-Douglas production function:\n"
     markdown_content += "     ```\n"
-    markdown_content += "     TFP_t = Y_t / (K_t^α * (L_t * H_t)^(1-α))\n"
+    markdown_content += "     TFP_t = Y_t / (K_t^alpha * (L_t * H_t)^(1-alpha))\n"
     markdown_content += "     ```\n"
     markdown_content += "     Where:\n"
     markdown_content += "     - Y_t is GDP in year t (billions USD)\n"
     markdown_content += "     - K_t is Physical Capital in year t (billions USD)\n"
     markdown_content += "     - L_t is Labor Force in year t (millions of people)\n"
     markdown_content += "     - H_t is Human Capital index in year t\n"
-    markdown_content += f"     - α = {alpha} (capital share parameter)\n\n"
+    markdown_content += f"     - alpha = 0.33 (capital share parameter)\n\n"
     markdown_content += "4. **Extrapolation to 2025**:\n"
     markdown_content += "   Each series was extrapolated using the following methods:\n\n"
-    markdown_content += "   - **ARIMA(1,1,1) model with fallback to average growth rate of last 4 years**: GDP, Consumption, Government, Investment, Exports, Imports\n"
-    markdown_content += "   - **Linear regression on historical values with fallback to average growth rate**: Population, Labor Force\n"
-    markdown_content += "   - **Exponential smoothing with fallback to average growth rate of last 4 years**: Human Capital\n"
-    markdown_content += "   - **Average growth rate of last 4 years**: FDI (% of GDP)\n"
-    markdown_content += "   - **Calculated as Exports - Imports for each projected year**: Net Exports\n"
-    markdown_content += "   - **Projected using the formula K_t = K_{t-1} * (1-δ) + I_t, where δ = 0.05 (5% depreciation rate) and I_t is investment in year t**: Physical Capital\n"
-    markdown_content += "   - **Recalculated using the Cobb-Douglas formula for each projected year**: TFP\n\n"
+
+    # Determine the last year with data for each variable
+    last_years = {}
+    for col in ['GDP_USD_bn', 'C_USD_bn', 'G_USD_bn', 'I_USD_bn', 'X_USD_bn', 'M_USD_bn', 'NX_USD_bn',
+                'POP_mn', 'LF_mn', 'FDI_pct_GDP', 'TAX_pct_GDP', 'hc', 'K_USD_bn', 'TFP', 'rgdpo_bn', 'rkna', 'pl_gdpo', 'cgdpo_bn', 'K_Y_ratio']:
+        if col in data.columns:
+            col_name = column_mapping.get(col, col)
+            # Find the last non-extrapolated year with data
+            last_year = None
+            for year in range(2023, 2018, -1):  # Check from 2023 backwards
+                if year in data['Year'].values:
+                    idx = data[data['Year'] == year].index[0]
+                    if not pd.isna(data.loc[idx, col_name]):
+                        last_year = year
+                        break
+
+            if last_year:
+                if col not in last_years:
+                    last_years[col] = last_year
+
+    # Log the last years with data for each variable
+    logger.info(f"Last years with data for each variable: {last_years}")
+
+    # Group variables by extrapolation method actually used
+    # Create a dictionary to group variables by method
+    methods_to_variables = {}
+    for var, method in extrapolation_methods_used.items():
+        if method not in methods_to_variables:
+            methods_to_variables[method] = []
+
+        # Convert internal variable name to display name
+        display_name = var
+        for display, internal in column_mapping.items():
+            if internal == var:
+                display_name = display
+                break
+
+        # Get years extrapolated
+        if var in last_years and last_years[var] is not None:
+            start_year = last_years[var] + 1
+            end_year = 2025
+            years_extrapolated = f" ({start_year}-{end_year})"
+        else:
+            # If we don't have a last year, assume it's extrapolated from 2023
+            years_extrapolated = " (2024-2025)"
+
+        methods_to_variables[method].append(f"{display_name}{years_extrapolated}")
+
+    # Write out the methods and variables
+    for method, variables in methods_to_variables.items():
+        if method == "ARIMA(1,1,1)":
+            markdown_content += f"   - **ARIMA(1,1,1) model**: \n"
+        elif method == "Linear regression":
+            markdown_content += f"   - **Linear regression**: \n"
+        elif method == "Exponential smoothing":
+            markdown_content += f"   - **Exponential smoothing**: \n"
+        elif method == "Average growth rate":
+            markdown_content += f"   - **Average growth rate of historical data**: \n"
+        elif method == "Investment-based projection":
+            markdown_content += f"   - **Investment-based projection**: \n"
+        elif method == "Derived calculation":
+            markdown_content += f"   - **Derived calculations**: \n"
+        else:
+            markdown_content += f"   - **{method}**: \n"
+
+        for var in variables:
+            # Extract the variable name and years
+            var_parts = var.split(" (")
+            var_name = var_parts[0]
+            years_part = f" ({var_parts[1]}" if len(var_parts) > 1 else ""
+
+            if var_name == "Physical Capital" and method == "Investment-based projection":
+                markdown_content += f"     - {var_name}{years_part}: Projected using the formula K_t = K_{{t-1}} * (1-delta) + I_t, where delta = 0.05 (5% depreciation rate) and I_t is investment in year t\n"
+            elif var_name == "Net Exports" and method == "Derived calculation":
+                markdown_content += f"     - {var_name}{years_part}: Calculated as Exports - Imports for each projected year\n"
+            elif "TFP" in var and method == "Derived calculation":
+                # Extract the variable name and years for TFP
+                var_parts = var.split(" (")
+                var_name = var_parts[0]
+                years_part = f" ({var_parts[1]}" if len(var_parts) > 1 else ""
+
+                markdown_content += f"     - {var_name}{years_part}: Recalculated using the Cobb-Douglas formula for each projected year\n"
+            else:
+                markdown_content += f"     - {var}\n"
+
+    markdown_content += "\n"
 
     # Write to file
     with open(output_path, 'w') as f:
@@ -830,9 +1190,33 @@ def main():
     # Update human capital with projections
     for _, row in hc_data.iterrows():
         year = row['year']
-        hc_value = row['hc']
-        if not pd.isna(hc_value):
+        if 'hc' in row and not pd.isna(row['hc']):
+            hc_value = row['hc']
             merged_data.loc[merged_data['year'] == year, 'hc'] = hc_value
+
+    # Ensure we have human capital values for all years (2020-2025)
+    # Use linear interpolation for missing values
+    if 'hc' in merged_data.columns:
+        # Get the available human capital data
+        available_hc = merged_data[['year', 'hc']].dropna(subset=['hc'])
+
+        if len(available_hc) >= 2:
+            # Create a linear regression model
+            X = available_hc['year'].values.reshape(-1, 1)
+            y = available_hc['hc'].values
+            model = LinearRegression()
+            model.fit(X, y)
+
+            # Fill in missing values for all years
+            for year in range(1960, 2026):
+                if year in merged_data['year'].values:
+                    idx = merged_data[merged_data['year'] == year].index
+                    if pd.isna(merged_data.loc[idx, 'hc'].values[0]):
+                        predicted_value = model.predict([[year]])[0]
+                        merged_data.loc[idx, 'hc'] = round(predicted_value, 4)
+
+            # Recalculate TFP after filling in human capital values
+            merged_data = calculate_tfp(merged_data, alpha=alpha)
 
     # Calculate additional variables
     # Net exports
@@ -850,14 +1234,25 @@ def main():
     print(f"Calculated total factor productivity (TFP) with alpha={alpha}.")
 
     # Extrapolate all series to 2025
-    merged_data = extrapolate_series_to_2025(merged_data)
-    print("Extrapolated all series to 2025.")
+    merged_data, extrapolation_methods_used = extrapolate_series_to_2025(merged_data)
+
+    # Recalculate derived variables for extrapolated years
+    # Recalculate Net Exports for all years
+    if all(col in merged_data.columns for col in ['X_USD_bn', 'M_USD_bn']):
+        merged_data['NX_USD_bn'] = merged_data['X_USD_bn'] - merged_data['M_USD_bn']
+
+    # Recalculate Capital-to-output ratio for all years
+    if all(col in merged_data.columns for col in ['K_USD_bn', 'GDP_USD_bn']):
+        merged_data['K_Y_ratio'] = merged_data['K_USD_bn'] / merged_data['GDP_USD_bn']
+
+    # Recalculate TFP for all years with the provided alpha value
+    merged_data = calculate_tfp(merged_data, alpha=alpha)
 
     # Select and reorder columns as requested
     output_columns = [
         'year', 'GDP_USD_bn', 'C_USD_bn', 'G_USD_bn', 'I_USD_bn',
         'X_USD_bn', 'M_USD_bn', 'NX_USD_bn', 'POP_mn', 'LF_mn',
-        'K_USD_bn', 'TFP', 'FDI_pct_GDP', 'hc'
+        'K_USD_bn', 'TFP', 'FDI_pct_GDP', 'TAX_pct_GDP', 'hc'
     ]
 
     # Rename columns to match requested format
@@ -875,8 +1270,13 @@ def main():
         'K_USD_bn': 'Physical Capital',
         'TFP': 'TFP',
         'FDI_pct_GDP': 'FDI (% of GDP)',
+        'TAX_pct_GDP': 'Tax Revenue (% of GDP)',
         'hc': 'Human Capital'
     }
+
+    # Remove duplicate rows for 2024 and 2025
+    # Keep only one row per year by dropping duplicates
+    merged_data = merged_data.drop_duplicates(subset=['year'], keep='first')
 
     # Filter and rename columns
     final_data = merged_data[output_columns].copy()
@@ -892,6 +1292,7 @@ def main():
     create_markdown_table(
         final_data,
         md_path,
+        extrapolation_methods_used,
         alpha=alpha,
         capital_output_ratio=capital_output_ratio,
         input_file=input_file

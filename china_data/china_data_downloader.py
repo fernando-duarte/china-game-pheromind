@@ -198,6 +198,9 @@ def main():
         # FDI as percentage of GDP
         'BX.KLT.DINV.WD.GD.ZS': 'FDI_pct_GDP',  # Foreign direct investment, net inflows (% of GDP)
 
+        # Tax revenue as percentage of GDP
+        'GC.TAX.TOTL.GD.ZS': 'TAX_pct_GDP',  # Tax revenue (% of GDP)
+
         # Population and labor force
         'SP.POP.TOTL': 'POP',         # Population, total
         'SL.TLF.TOTL.IN': 'LF'        # Labor force, total
@@ -276,6 +279,7 @@ def main():
         'X_USD': 'Exports (USD)',
         'M_USD': 'Imports (USD)',
         'FDI_pct_GDP': 'FDI (% of GDP)',
+        'TAX_pct_GDP': 'Tax Revenue (% of GDP)',
         'POP': 'Population',
         'LF': 'Labor Force',
         'rgdpo': 'PWT rgdpo',
@@ -315,17 +319,29 @@ Data sources:
     # Use Jinja2 template for notes and sources
     notes_template = Template("""
 **Notes:**
+
 - GDP and its components (Consumption, Government, Investment, Exports, Imports) are in current US dollars
+
 - FDI is shown as a percentage of GDP (net inflows)
+
+- Tax Revenue is shown as a percentage of GDP
+
 - Population and Labor Force are in number of people
+
 - PWT rgdpo: Output-side real GDP at chained PPPs (in millions of 2017 USD)
+
 - PWT rkna: Capital stock at constant 2017 national prices (index: 2017=1)
+
 - PWT pl_gdpo: Price level of GDP (price level of USA GDPo in 2017=1)
+
 - PWT cgdpo: Output-side real GDP at current PPPs (in millions of USD)
+
 - PWT hc: Human capital index, based on years of schooling and returns to education
 
 Sources:
+
 - World Bank WDI data: World Development Indicators, The World Bank. Available at https://databank.worldbank.org/source/world-development-indicators
+
 - PWT data: Feenstra, Robert C., Robert Inklaar and Marcel P. Timmer (2015), "The Next Generation of the Penn World Table" American Economic Review, 105(10), 3150-3182. Available at www.ggdc.net/pwt
 """)
 
