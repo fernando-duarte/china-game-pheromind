@@ -146,7 +146,7 @@ fi
 echo -e "\n${YELLOW}Upgrading pip and setuptools...${NC}"
 $PYTHON_CMD -m pip install --upgrade pip > /dev/null
 # Install setuptools with distutils support
-$PYTHON_CMD -m pip install setuptools>=67.0.0 > /dev/null
+$PYTHON_CMD -m pip install 'setuptools>=67.0.0' > /dev/null
 
 # Install dependencies
 echo -e "\n${YELLOW}Installing dependencies...${NC}"
