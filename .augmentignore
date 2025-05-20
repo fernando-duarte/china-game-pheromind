@@ -1,0 +1,61 @@
+# Python virtual environments
+venv/
+env/
+.env/
+.venv/
+ENV/
+
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Data files
+*.csv
+*.xlsx
+*.xls
+*.json
+*.pkl
+*.h5
+*.parquet
+*.feather
+*.db
+*.sqlite
+*.sqlite3
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Git
+.git/
+.gitignore
+
+# Large binary files
+*.so
+*.dylib
+*.dll
+*.zip
+*.tar.gz
+*.tgz
+
+# Project specific
+# Uncomment or add specific patterns for your project
+# china_data/raw_data/
+# china_data/output/

@@ -43,13 +43,6 @@
 | $\varepsilon_x,\ \varepsilon_m$ | Exchange‐rate elasticities (exports/imports) | unitless | $1.5,\ 1.2$ |
 | $\mu_x,\ \mu_m$                 | Income elasticities (exports/imports)        | unitless | $1.0,\ 1.0$ |
 
-**Note:** The initial TFP, $A_0$, is backed out from 1980 data via
-
-$$
-A_0 \;=\;\frac{Y_{1980}}{K_0^{\alpha}\,(L_0\,H_0)^{1-\alpha}}
-\;=\;\frac{191.15}{2050.10^{0.30}\,\bigl(428.30\times1.58\bigr)^{0.70}}
-\;\approx\;0.203.
-$$
 
 ## Paths of exogenous variables
 
@@ -66,27 +59,8 @@ $$
 | 2020 |         7.00 |           0.02 | 3262.04 |  6.71 |
 | 2025 |         6.41 |           0.02 | 3781.60 |  6.49 |
 
-Values for 2025 are latest available:
-
-- $\tilde e_t$ uses 2024 value
-- $H_t$ uses 2022 value
-
-<!-- ## Control Variables (Student/Player-Determined)
-
-| Symbol | Definition           | Units                 |
-| :----- | :------------------- | :-------------------- |
-| $e_t$  | Exchange rate policy | 1.2, 1.0 or 0.8       |
-| $s_t$  | Saving rate          | fraction (0.0 to 1.0) | -->
-
 - **Exchange-rate policy**
-
-  $$
-  e_t = x_t\, \tilde e_t = \begin{cases}
-    1.2\,\tilde e_t, & \text{undervalued}\\
-    1.0\,\tilde e_t,      & \text{market value}\\
-    0.8\,\tilde e_t, & \text{overvalued}
-  \end{cases}
-  $$
+- $$  e_t   $$
 
 - **Saving-rate policy**
   $$s\in[0.0,1.0]$$
@@ -138,9 +112,6 @@ Values for 2025 are latest available:
 - **Openness ratio:**
   $$openness_t \;=\; \frac{X_t + M_t}{Y_t}$$
 
-- **Nominal exchange rate:**
-  $$e_t = x_t\, \tilde e_t$$
-
 ## Round-by-Round Calendar
 
 Rounds/Periods $t=0, 1, \dots$ correspond to 1980, 1985, ..., (five year intervals).
@@ -153,8 +124,8 @@ Rounds/Periods correspond to (t = 0) → 1980, (t = 1) → 1985, ... . For examp
 
 ### Read values
 
-1. Read values of $x_t$, $s_t$ entered by player.
-2. Read values of exogenous variables $\tilde e_t$, $fdi\_ratio_t$, $Y^*_t$, $H_t$ from table `Paths of exogenous variables'.
+1. Read values of $s_t$ entered by player.
+2. Read values of exogenous variables $fdi\_ratio_t$, $Y^*_t$, $H_t$ from table `Paths of exogenous variables'.
 3. Read values for $K_t$, $L_t$, $A_t$:
 
 - For first round (1980), $K_0$, $L_0$, $A_0$ given by parameter values

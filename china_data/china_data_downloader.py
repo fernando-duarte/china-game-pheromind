@@ -124,17 +124,46 @@ def get_pwt_data():
     # "The Next Generation of the Penn World Table" American Economic Review, 105(10), 3150-3182
     # Available at www.ggdc.net/pwt
     excel_url = "https://dataverse.nl/api/access/datafile/354095"  # Excel file from PWT 10.01
-    response = requests.get(excel_url)
-    with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as tmp:
-        tmp.write(response.content)
-        tmp_path = tmp.name
 
-    # Read the Excel file with proper cleanup
+    tmp_path = None
     try:
+        # Use stream=True to avoid loading the entire file into memory at once
+        with requests.get(excel_url, stream=True) as response:
+            # Check response status and raise exception for 4xx/5xx errors
+            response.raise_for_status()
+
+            # Create a temporary file to store the downloaded content
+            with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as tmp:
+                # Write the content in chunks to avoid memory issues with large files
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:  # filter out keep-alive new chunks
+                        tmp.write(chunk)
+                tmp_path = tmp.name
+                logger.debug(f"Downloaded PWT data to temporary file: {tmp_path}")
+
+        # Read the Excel file
         pwt = pd.read_excel(tmp_path, sheet_name="Data")
+
+    except requests.exceptions.HTTPError as e:
+        logger.error(f"HTTP error occurred while downloading PWT data: {e}")
+        raise
+    except requests.exceptions.ConnectionError as e:
+        logger.error(f"Connection error occurred while downloading PWT data: {e}")
+        raise
+    except requests.exceptions.Timeout as e:
+        logger.error(f"Timeout occurred while downloading PWT data: {e}")
+        raise
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error occurred while downloading PWT data: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error occurred while processing PWT data: {e}")
+        raise
     finally:
         # Delete the temporary file even if an exception occurs
-        os.unlink(tmp_path)
+        if tmp_path and os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+            logger.debug(f"Deleted temporary file: {tmp_path}")
 
     # Get China's data
     chn = pwt[pwt.countrycode == "CHN"].copy()
@@ -152,8 +181,9 @@ def main():
     logger.info("Starting China Economic Data Downloader...")
 
     # Create output directory if it doesn't exist
-    output_dir = "."
+    output_dir = os.path.join(".", "output")
     os.makedirs(output_dir, exist_ok=True)
+    logger.info(f"Output files will be saved to: {output_dir}")
 
     # Define the indicators to download
     indicators = {

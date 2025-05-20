@@ -5,24 +5,31 @@ China Economic Data Processor
 This script processes raw economic data for China and performs various transformations and calculations:
 1. Converts units (e.g., USD to billions USD for nominal values)
 2. Calculates capital stock data from Penn World Table (PWT) raw data
-3. Projects capital stock data using investment and depreciation
+3. Projects capital stock data using investment and depreciation (5% annual rate)
 4. Projects human capital data using trend extrapolation
-5. Calculates additional economic variables (e.g., net exports, capital-to-output ratio)
+5. Calculates additional economic variables (e.g., net exports, capital-to-output ratio, TFP)
+6. Extrapolates all time series to 2025 using appropriate statistical methods
 
 The script takes raw data downloaded by china_data_downloader.py and produces
 processed datasets for analysis. The output files include:
 
-1. china_economic_data_processed.csv - Main processed dataset with all variables
-2. capital_stock_projected.csv - Capital stock data with projections
-3. human_capital_projected.csv - Human capital data with projections
+1. china_data_processed.csv - Main processed dataset with all variables
+2. china_data_processed.md - Markdown version with detailed notes on computation methods
 
 Data sources:
-- World Bank World Development Indicators (WDI)
-- Penn World Table (PWT) version 10.01
+- World Bank World Development Indicators (WDI) for GDP components, FDI, population, and labor force
+- Penn World Table (PWT) version 10.01 for human capital index and capital stock related variables
+
+Extrapolation methods used:
+- ARIMA(1,1,1) for GDP and components (with fallback to average growth rate)
+- Linear regression for population and labor force (with fallback to average growth rate)
+- Exponential smoothing for human capital (with fallback to average growth rate)
+- Capital stock projection using investment and 5% depreciation rate
 """
 
 # Standard library imports
 import os
+import argparse
 from datetime import datetime
 
 # Third-party imports
@@ -40,7 +47,7 @@ if not hasattr(pd.DataFrame, 'to_markdown'):
         return tabulate(df, headers='keys', tablefmt='pipe', showindex=index, **kwargs)
     pd.DataFrame.to_markdown = to_markdown
 
-def load_raw_data(data_dir="."):
+def load_raw_data(data_dir=".", input_file="china_data_raw.md"):
     """
     Load raw data from the data directory.
 
@@ -48,16 +55,25 @@ def load_raw_data(data_dir="."):
     -----------
     data_dir : str
         Directory containing the raw data files
+    input_file : str
+        Name of the input file containing raw data (markdown format)
 
     Returns:
     --------
     pandas.DataFrame
         DataFrame with the raw economic data
     """
-    # Check if the markdown file exists
-    md_file = os.path.join(data_dir, "china_data_raw.md")
+    # First check if the file exists in the specified directory
+    md_file = os.path.join(data_dir, input_file)
+
+    # If not found, check in the output directory
     if not os.path.exists(md_file):
-        raise FileNotFoundError(f"Raw data file not found: {md_file}. Run china_data_downloader.py first.")
+        output_dir = os.path.join(data_dir, "output")
+        md_file = os.path.join(output_dir, input_file)
+
+    # If still not found, raise an error
+    if not os.path.exists(md_file):
+        raise FileNotFoundError(f"Raw data file not found: {input_file} in either {data_dir} or {os.path.join(data_dir, 'output')}. Run china_data_downloader.py first.")
 
     # Parse the markdown file to extract the data
     # This is a simple approach - in a production environment, you might want to save CSV files instead
@@ -193,13 +209,13 @@ def convert_units(raw_data):
 
     return df
 
-def calculate_capital_stock(raw_data):
+def calculate_capital_stock(raw_data, capital_output_ratio=3.0):
     """
     Calculate capital stock in billions of USD from raw Penn World Table data.
 
     Method:
     1. Use 2017 as the reference year (PWT 10.01 uses 2017 as base year)
-    2. Calculate nominal capital stock for 2017 using capital-output ratio of 3.0
+    2. Calculate nominal capital stock for 2017 using specified capital-output ratio
     3. Use the real capital stock index (rkna) to extrapolate to other years
     4. Adjust for price level changes using pl_gdpo
     5. Convert from millions to billions of USD
@@ -208,6 +224,8 @@ def calculate_capital_stock(raw_data):
     -----------
     raw_data : pandas.DataFrame
         DataFrame with raw economic data including PWT variables
+    capital_output_ratio : float
+        Capital-to-output ratio for base year (2017) capital stock calculation (default: 3.0)
 
     Returns:
     --------
@@ -227,9 +245,8 @@ def calculate_capital_stock(raw_data):
     try:
         gdp_2017 = df.loc[df.year == 2017, 'cgdpo'].values[0]
 
-        # Get the capital-output ratio for China in 2017
-        # This is typically around 3 for developing countries
-        capital_output_ratio = 3.0
+        # Use the provided capital-output ratio for China in 2017
+        print(f"Using capital-output ratio of {capital_output_ratio} for 2017 capital stock calculation")
 
         # Calculate the nominal capital stock in 2017 (millions USD)
         capital_stock_2017 = gdp_2017 * capital_output_ratio
@@ -630,7 +647,7 @@ def extrapolate_series_to_2025(data):
 
     return df
 
-def create_markdown_table(data, output_path):
+def create_markdown_table(data, output_path, alpha=1/3, capital_output_ratio=3.0, input_file="china_data_raw.md"):
     """
     Create a markdown file with a table of the processed data and notes on computation.
 
@@ -640,6 +657,12 @@ def create_markdown_table(data, output_path):
         DataFrame with the processed data
     output_path : str
         Path to save the markdown file
+    alpha : float
+        Capital share parameter used in TFP calculation
+    capital_output_ratio : float
+        Capital-to-output ratio used for base year capital stock calculation
+    input_file : str
+        Name of the input file containing raw data
     """
     # Create the markdown content
     markdown_content = "# China Economic Variables\n\n"
@@ -653,7 +676,7 @@ def create_markdown_table(data, output_path):
 
     # Add notes on computation
     markdown_content += "## Notes on Computation\n\n"
-    markdown_content += "The raw data in `china_data_raw.md` comes from the following sources:\n\n"
+    markdown_content += f"The raw data in `{input_file}` comes from the following sources:\n\n"
     markdown_content += "1. **Original Data Sources**:\n"
     markdown_content += "   - World Bank World Development Indicators (WDI) for GDP components, FDI, population, and labor force\n"
     markdown_content += "   - Penn World Table (PWT) version 10.01 for human capital index and capital stock related variables\n\n"
@@ -674,7 +697,7 @@ def create_markdown_table(data, output_path):
     markdown_content += "     - K_t is the capital stock in year t (billions USD)\n"
     markdown_content += "     - rkna_t is the real capital stock index in year t (from PWT)\n"
     markdown_content += "     - rkna_2017 is the real capital stock index in 2017 (from PWT)\n"
-    markdown_content += "     - K_2017 is the nominal capital stock in 2017, estimated as GDP_2017 * 3.0 (capital-output ratio)\n"
+    markdown_content += f"     - K_2017 is the nominal capital stock in 2017, estimated as GDP_2017 * {capital_output_ratio} (capital-output ratio)\n"
     markdown_content += "     - pl_gdpo_t is the price level of GDP in year t (from PWT)\n"
     markdown_content += "     - pl_gdpo_2017 is the price level of GDP in 2017 (from PWT)\n\n"
     markdown_content += "   - **TFP (Total Factor Productivity)**: Calculated using the Cobb-Douglas production function:\n"
@@ -686,7 +709,7 @@ def create_markdown_table(data, output_path):
     markdown_content += "     - K_t is Physical Capital in year t (billions USD)\n"
     markdown_content += "     - L_t is Labor Force in year t (millions of people)\n"
     markdown_content += "     - H_t is Human Capital index in year t\n"
-    markdown_content += "     - α = 1/3 (capital share parameter)\n\n"
+    markdown_content += f"     - α = {alpha} (capital share parameter)\n\n"
     markdown_content += "4. **Extrapolation to 2025**:\n"
     markdown_content += "   Each series was extrapolated using the following methods:\n\n"
     markdown_content += "   - **ARIMA(1,1,1) model with fallback to average growth rate of last 4 years**: GDP, Consumption, Government, Investment, Exports, Imports\n"
@@ -703,13 +726,74 @@ def create_markdown_table(data, output_path):
 
     print(f"Markdown table saved to {output_path}")
 
+def parse_arguments():
+    """
+    Parse command-line arguments for the script.
+
+    Returns:
+    --------
+    argparse.Namespace
+        Parsed command-line arguments
+    """
+    parser = argparse.ArgumentParser(
+        description="Process China economic data and calculate economic variables",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+
+    parser.add_argument(
+        "-i", "--input-file",
+        default="china_data_raw.md",
+        help="Input file containing raw economic data (markdown format)"
+    )
+
+    parser.add_argument(
+        "-a", "--alpha",
+        type=float,
+        default=1/3,
+        help="Capital share parameter (alpha) for TFP calculation in Cobb-Douglas production function"
+    )
+
+    parser.add_argument(
+        "-o", "--output-file",
+        default="china_data_processed",
+        help="Base name for output files (without extension)"
+    )
+
+    parser.add_argument(
+        "-k", "--capital-output-ratio",
+        type=float,
+        default=3.0,
+        help="Capital-to-output ratio for base year (2017) capital stock calculation"
+    )
+
+    return parser.parse_args()
+
 def main():
     """Main function to process the data."""
     print("Starting China Economic Data Processor...")
 
+    # Parse command-line arguments
+    args = parse_arguments()
+
+    # Extract arguments
+    input_file = args.input_file
+    alpha = args.alpha
+    output_base = args.output_file
+    capital_output_ratio = args.capital_output_ratio
+
+    # Create output directory if it doesn't exist
+    output_dir = os.path.join(".", "output")
+    os.makedirs(output_dir, exist_ok=True)
+    print(f"Output files will be saved to: {output_dir}")
+
+    print(f"Using input file: {input_file}")
+    print(f"Using alpha value: {alpha}")
+    print(f"Using capital-output ratio: {capital_output_ratio}")
+    print(f"Output will be saved with base name: {output_base}")
+
     # Load raw data
     try:
-        raw_data = load_raw_data()
+        raw_data = load_raw_data(data_dir=".", input_file=input_file)
         print(f"Loaded raw data with {len(raw_data)} rows.")
     except Exception as e:
         print(f"Error loading raw data: {e}")
@@ -720,7 +804,7 @@ def main():
     print("Converted units in raw data.")
 
     # Calculate capital stock from PWT data
-    data_with_capital = calculate_capital_stock(raw_data)
+    data_with_capital = calculate_capital_stock(raw_data, capital_output_ratio=capital_output_ratio)
 
     # Merge the calculated capital stock with the converted data
     processed_data = converted_data.copy()
@@ -761,9 +845,9 @@ def main():
         merged_data['K_Y_ratio'] = merged_data['K_USD_bn'] / merged_data['GDP_USD_bn']
         print("Calculated capital-to-output ratio.")
 
-    # Calculate TFP with default alpha=1/3
-    merged_data = calculate_tfp(merged_data)
-    print("Calculated total factor productivity (TFP).")
+    # Calculate TFP with provided alpha value
+    merged_data = calculate_tfp(merged_data, alpha=alpha)
+    print(f"Calculated total factor productivity (TFP) with alpha={alpha}.")
 
     # Extrapolate all series to 2025
     merged_data = extrapolate_series_to_2025(merged_data)
@@ -798,17 +882,20 @@ def main():
     final_data = merged_data[output_columns].copy()
     final_data = final_data.rename(columns=column_mapping)
 
-    # Ensure output directory exists
-    os.makedirs('.', exist_ok=True)
-
     # Save the processed data to CSV
-    csv_path = os.path.join('.', 'china_data_processed.csv')
+    csv_path = os.path.join(output_dir, f"{output_base}.csv")
     final_data.to_csv(csv_path, index=False)
     print(f"Final processed data saved to {csv_path}")
 
     # Create markdown table
-    md_path = os.path.join('.', 'china_data_processed.md')
-    create_markdown_table(final_data, md_path)
+    md_path = os.path.join(output_dir, f"{output_base}.md")
+    create_markdown_table(
+        final_data,
+        md_path,
+        alpha=alpha,
+        capital_output_ratio=capital_output_ratio,
+        input_file=input_file
+    )
 
     print("\nData processing complete!")
 
