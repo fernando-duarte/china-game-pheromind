@@ -62,12 +62,13 @@ coverage.xml
 # *.json
 
 # China data specific
-china_data/output/
 china_data/venv/
 china_data/*.csv
 china_data/*.md
 !china_data/README.md
 !china_data/china_growth_model.md
+china_data/parameters_info/
+china_data/**/*.pdf
 
 # Logs
 *.log
