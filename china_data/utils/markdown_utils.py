@@ -1,4 +1,3 @@
-from datetime import datetime
 from jinja2 import Template
 import pandas as pd
 
@@ -49,33 +48,7 @@ def render_markdown_table(merged_data, wdi_date=None, pwt_date=None):
     headers = list(display_data.columns)
     rows = display_data.values.tolist()
 
-    # Use default dates if not provided
-    if wdi_date is None:
-        wdi_date = datetime.today().strftime('%Y-%m-%d')
-    if pwt_date is None:
-        pwt_date = datetime.today().strftime('%Y-%m-%d')
-    if imf_date is None:
-        # Try to read from the download_date.txt file
-        date_file = find_file('download_date.txt', get_search_locations_relative_to_root()["input_files"])
-        if date_file and os.path.exists(date_file):
-            with open(date_file, 'r') as f:
-                lines = f.readlines()
-
-            # Parse the file content
-            metadata = {}
-            for line in lines:
-                line = line.strip()
-                if line and ':' in line:
-                    key, value = line.split(':', 1)
-                    metadata[key.strip()] = value.strip()
-
-            # Extract the download date
-            if 'download_date' in metadata:
-                imf_date = metadata['download_date']
-            else:
-                imf_date = datetime.today().strftime('%Y-%m-%d')
-        else:
-            imf_date = datetime.today().strftime('%Y-%m-%d')
+    # No default dates - we'll only include dates in the markdown if they're provided
 
     template = Template('''# China Economic Data
 
