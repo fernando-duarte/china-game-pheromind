@@ -43,6 +43,7 @@ import logging
 from datetime import datetime
 import zipfile
 import argparse
+import datetime
 
 # Configure logging
 logging.basicConfig(
@@ -204,15 +205,12 @@ def main():
         # FDI as percentage of GDP
         'BX.KLT.DINV.WD.GD.ZS': 'FDI_pct_GDP',  # Foreign direct investment, net inflows (% of GDP)
 
-        # Tax revenue as percentage of GDP
-        'GC.TAX.TOTL.GD.ZS': 'TAX_pct_GDP',  # Tax revenue (% of GDP)
-
         # Population and labor force
         'SP.POP.TOTL': 'POP',         # Population, total
         'SL.TLF.TOTL.IN': 'LF'        # Labor force, total
     }
 
-    # Download all indicators
+    # Download all indicators except Tax revenue (% of GDP)
     all_data = {}
     for code, name in indicators.items():
         data = download_wdi_data(code, end_year=end_year)
@@ -223,9 +221,27 @@ def main():
             # Ensure year is an integer
             data['year'] = data['year'].astype(int)
             all_data[name] = data
-
-        # Add a small delay to avoid hitting API rate limits
         time.sleep(1)
+
+    # --- Tax revenue series logic ---
+    # Use provided IMF CSV file for tax revenue (% of GDP)
+    imf_file = os.path.join('china_data', 'input', 'dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv')
+    if not os.path.exists(imf_file):
+        logger.error(f"IMF Fiscal Monitor file not found: {imf_file}")
+        tax_data = None
+        tax_name = None
+    else:
+        df = pd.read_csv(imf_file)
+        # Filter for China, annual, and the correct indicator (G1_S13_POGDP_PT)
+        df = df[(df['COUNTRY'] == 'CHN') & (df['FREQUENCY'] == 'A') & (df['INDICATOR'] == 'G1_S13_POGDP_PT')]
+        # Use TIME_PERIOD as year and OBS_VALUE as value
+        tax_data = df[['TIME_PERIOD', 'OBS_VALUE']].rename(columns={'TIME_PERIOD': 'year', 'OBS_VALUE': 'TAX_pct_GDP'})
+        tax_data['year'] = tax_data['year'].astype(int)
+        tax_data['TAX_pct_GDP'] = pd.to_numeric(tax_data['TAX_pct_GDP'], errors='coerce')
+        tax_name = 'TAX_pct_GDP'
+        logger.info(f"Loaded tax revenue (% of GDP) from IMF Fiscal Monitor file: {imf_file}")
+    if tax_data is not None:
+        all_data[tax_name] = tax_data
 
     # Get Penn World Table data
     try:
@@ -309,11 +325,13 @@ def main():
     table_rows = display_data.values.tolist()
 
     # Jinja2 template for the full markdown output
+    today = datetime.datetime.today().strftime('%Y-%m-%d')
     markdown_template = Template('''# China Economic Data
 
 Data sources:
 - World Bank World Development Indicators (WDI)
 - Penn World Table (PWT) version 10.01
+- International Monetary Fund. Fiscal Monitor (FM),  https://data.imf.org/en/datasets/IMF.FAD:FM. Accessed on {{ today }}.
 
 ## Economic Data (1960-present)
 
@@ -326,7 +344,7 @@ Data sources:
 
 - GDP and its components (Consumption, Government, Investment, Exports, Imports) are in current US dollars
 - FDI is shown as a percentage of GDP (net inflows)
-- Tax Revenue is shown as a percentage of GDP
+- Tax Revenue is shown as a percentage of GDP (IMF Fiscal Monitor)
 - Population and Labor Force are in number of people
 - PWT rgdpo: Output-side real GDP at chained PPPs (in millions of 2017 USD)
 - PWT rkna: Capital stock at constant 2017 national prices (index: 2017=1)
@@ -338,11 +356,13 @@ Sources:
 
 - World Bank WDI data: World Development Indicators, The World Bank. Available at https://databank.worldbank.org/source/world-development-indicators
 - PWT data: Feenstra, Robert C., Robert Inklaar and Marcel P. Timmer (2015), "The Next Generation of the Penn World Table" American Economic Review, 105(10), 3150-3182. Available at www.ggdc.net/pwt
+- International Monetary Fund. Fiscal Monitor (FM),  https://data.imf.org/en/datasets/IMF.FAD:FM. Accessed on {{ today }}.
 ''')
 
     markdown_output = markdown_template.render(
         table_headers=table_headers,
-        table_rows=table_rows
+        table_rows=table_rows,
+        today=today
     )
 
     # Save the markdown file

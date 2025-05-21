@@ -74,9 +74,6 @@
   $$L_{t+1} = (1+n) L_t$$
 
 - **TFP:**
-  $$A_{t+1} = A_t (1 + g + \theta\,openness_t + \phi\,fdi\_ratio_t)$$
-
-
 The law of motion for technology \(A_t\) with spillover effects from openness and FDI can be written generally as:
 
     $$

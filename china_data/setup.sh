@@ -58,8 +58,40 @@ if [ -z "$PYTHON_CMD" ]; then
     exit 1
 fi
 
+# Function to run pytest
+run_pytest() {
+    echo -e "\n${YELLOW}Running tests...${NC}"
+    # Temporarily add parent directory to PYTHONPATH so `import china_data` works
+    (export PYTHONPATH="..:$PYTHONPATH"; $PYTHON_CMD -m pytest tests)
+    # Consider adding error handling for pytest if needed:
+    # if [ $? -ne 0 ]; then
+    #     echo -e "${RED}Pytest failed!${NC}"
+    #     cleanup_and_exit "Exiting due to test failures." 1
+    # fi
+}
+
+# Function for cleanup and exit
+cleanup_and_exit() {
+    local message_prefix="$1"
+    local exit_code="${2:-0}" # Default exit code 0
+
+    if [ "$ALREADY_IN_VENV" = false ] && [ -n "$VIRTUAL_ENV" ]; then # Check if venv is active and script created it
+        deactivate
+        echo "Local virtual environment deactivated."
+    elif [ "$ALREADY_IN_VENV" = true ]; then
+        echo "Keeping your original virtual environment active."
+    fi
+
+    if [ -n "$message_prefix" ]; then
+        echo -e "\n${GREEN}${message_prefix}${NC}"
+    fi
+    echo -e "\n${GREEN}=== Script Finished ===${NC}"
+    exit $exit_code
+}
+
 # Parse command line arguments
 DEV_MODE=false
+ONLY_RUN_TESTS=false
 ALPHA=""
 CAPITAL_OUTPUT_RATIO=""
 OUTPUT_FILE=""
@@ -71,6 +103,10 @@ do
     case $arg in
         --dev)
         DEV_MODE=true
+        shift
+        ;;
+        --test)
+        ONLY_RUN_TESTS=true
         shift
         ;;
         -a=*|--alpha=*)
@@ -96,11 +132,12 @@ do
         --help)
         echo "Usage: ./setup.sh [OPTIONS]"
         echo "Options:"
-        echo "  --dev                           Install development dependencies"
+        echo "  --dev                           Install development dependencies (and run tests after main scripts)"
+        echo "  --test                          Install development dependencies and run tests only"
         echo "  -a=VALUE, --alpha=VALUE         Capital share parameter for TFP calculation (default: 0.33)"
         echo "  -k=VALUE, --capital-output-ratio=VALUE  Capital-to-output ratio for base year (default: 3.0)"
         echo "  -o=NAME, --output-file=NAME     Base name for output files (default: china_data_processed)"
-        echo "  --end-year=YYYY                 Last year to process (default: 2025)"
+        echo "  --end-year=YYYY                 Last year to process (default: 2025, ignored if --test is used)"
         echo "  --help                          Show this help message"
         exit 0
         ;;
@@ -160,16 +197,22 @@ $PYTHON_CMD -m pip install 'setuptools>=67.0.0' > /dev/null
 
 # Install dependencies
 echo -e "\n${YELLOW}Installing dependencies...${NC}"
-if [ "$DEV_MODE" = true ]; then
+if [ "$DEV_MODE" = true ] || [ "$ONLY_RUN_TESTS" = true ]; then
     echo "Installing development dependencies..."
     $PYTHON_CMD -m pip install -r dev-requirements.txt
 else
+    echo "Installing standard dependencies..."
     $PYTHON_CMD -m pip install -r requirements.txt
 fi
 
-echo -e "\n${GREEN}Setup complete!${NC}"
+echo -e "\n${GREEN}Dependency setup complete!${NC}"
 
-# Always run the scripts automatically (no SKIP_RUN option)
+if [ "$ONLY_RUN_TESTS" = true ]; then
+    run_pytest
+    cleanup_and_exit "Exiting after running tests only." 0
+fi
+
+# If not ONLY_RUN_TESTS, proceed with data scripts
 echo -e "\n${YELLOW}Running China Economic Data Downloader...${NC}"
 $PYTHON_CMD china_data_downloader.py --end-year=$END_YEAR
 
@@ -181,15 +224,11 @@ else
     $PYTHON_CMD china_data_processor.py --end-year=$END_YEAR
 fi
 
-echo -e "\n${GREEN}All done! Output files are in the 'output' directory.${NC}"
+echo -e "\n${GREEN}Data processing complete! Output files are in the 'output' directory.${NC}"
 
-# Only deactivate if we activated it ourselves
-if [ "$ALREADY_IN_VENV" = false ]; then
-    # Deactivate virtual environment
-    deactivate
-    echo "Local virtual environment deactivated."
-else
-    echo "Keeping your original virtual environment active."
+if [ "$DEV_MODE" = true ]; then
+    # ONLY_RUN_TESTS is false if we reach here, so this runs tests after data scripts for --dev
+    run_pytest
 fi
 
-echo -e "\n${GREEN}=== Setup Complete ===${NC}"
+cleanup_and_exit "Main script execution finished." 0
