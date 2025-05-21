@@ -1,13 +1,9 @@
-import os
 from datetime import datetime
 from jinja2 import Template
 import pandas as pd
 
-from china_data.utils import find_file
-from china_data.utils.path_constants import get_search_locations_relative_to_root
 
-
-def render_markdown_table(merged_data, wdi_date=None, pwt_date=None, imf_date=None):
+def render_markdown_table(merged_data, wdi_date=None, pwt_date=None):
     """
     Render the merged data as a markdown table.
 
@@ -15,7 +11,6 @@ def render_markdown_table(merged_data, wdi_date=None, pwt_date=None, imf_date=No
         merged_data (pandas.DataFrame): The merged data to render
         wdi_date (str, optional): The download date for WDI data
         pwt_date (str, optional): The download date for PWT data
-        imf_date (str, optional): The download date for IMF data
 
     Returns:
         str: The rendered markdown table
@@ -110,6 +105,6 @@ Data sources:
 Sources:
 - World Bank WDI data: World Development Indicators, The World Bank. Available at https://databank.worldbank.org/source/world-development-indicators. {% if wdi_date %}Accessed on {{ wdi_date }}.{% endif %}
 - PWT data: Feenstra, Robert C., Robert Inklaar and Marcel P. Timmer (2015), "The Next Generation of the Penn World Table" American Economic Review, 105(10), 3150-3182. Available at https://www.ggdc.net/pwt. {% if pwt_date %}Accessed on {{ pwt_date }}.{% endif %}
-- International Monetary Fund. Fiscal Monitor (FM),  https://data.imf.org/en/datasets/IMF.FAD:FM. Accessed on {{ imf_date }}.
+- International Monetary Fund. Fiscal Monitor (FM),  https://data.imf.org/en/datasets/IMF.FAD:FM.
 ''')
-    return template.render(headers=headers, rows=rows, imf_date=imf_date, wdi_date=wdi_date, pwt_date=pwt_date)
+    return template.render(headers=headers, rows=rows, wdi_date=wdi_date, pwt_date=pwt_date)
