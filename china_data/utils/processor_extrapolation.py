@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 from statsmodels.tsa.arima.model import ARIMA
-from statsmodels.tsa.holtwinters import ExponentialSmoothing
 from sklearn.linear_model import LinearRegression
 import logging
 
@@ -59,7 +58,7 @@ def _apply_methods(df, years_to_add, cols, info):
                 continue
             except Exception as e:
                 logger.warning("ARIMA failed for %s, falling back to average growth rate. Error: %s", col, e)
-        if col in demographic and len(historical) >= 2:
+        if (col in demographic or col in human) and len(historical) >= 2:
             try:
                 X = historical['year'].values.reshape(-1,1)
                 y = historical[col].values
@@ -72,17 +71,6 @@ def _apply_methods(df, years_to_add, cols, info):
                 continue
             except Exception as e:
                 logger.warning("Linear regression failed for %s, falling back to average growth rate. Error: %s", col, e)
-        if col in human and len(historical) >= 2:
-            try:
-                model = ExponentialSmoothing(historical[col], trend='add', seasonal=None)
-                model_fit = model.fit()
-                fc = model_fit.forecast(steps=len(yrs))
-                for i, year in enumerate(yrs):
-                    df.loc[df.year == year, col] = round(max(0, fc[i]), 4)
-                info[col] = {'method': 'Exponential smoothing', 'years': yrs}
-                continue
-            except Exception as e:
-                logger.warning("Exponential smoothing failed for %s, falling back to average growth rate. Error: %s", col, e)
         if len(historical) >= 2:
             n_years = min(4, len(historical))
             last_years = historical[col].iloc[-n_years:].values

@@ -9,7 +9,7 @@ import numpy as np
 
 # Use absolute imports
 from china_data.utils.processor_cli import parse_arguments
-from china_data.utils.processor_load import load_raw_data, load_imf_tax_revenue_data
+from china_data.utils.processor_load import load_raw_data, load_imf_tax_revenue_data, get_project_root
 from china_data.utils.processor_units import convert_units
 from china_data.utils.processor_capital import calculate_capital_stock, project_capital_stock
 from china_data.utils.processor_hc import project_human_capital
@@ -31,11 +31,14 @@ def main():
     capital_output_ratio = args.capital_output_ratio
     end_year = args.end_year
 
-    output_dir = os.path.join('.', 'output')
+    # Ensure we always use the china_data/output directory regardless of where we're running from
+    project_root = get_project_root()
+    output_dir = os.path.join(project_root, 'china_data', 'output')
     os.makedirs(output_dir, exist_ok=True)
+    logger.info(f"Output files will be saved to: {output_dir}")
 
-    raw_data = load_raw_data(data_dir='.', input_file=input_file)
-    imf_tax_data = load_imf_tax_revenue_data(data_dir='.')
+    raw_data = load_raw_data(input_file=input_file)
+    imf_tax_data = load_imf_tax_revenue_data()
 
     converted = convert_units(raw_data)
     capital_df = calculate_capital_stock(raw_data, capital_output_ratio)
@@ -65,10 +68,29 @@ def main():
 
     merged, info = extrapolate_series_to_end_year(merged, end_year=end_year, raw_data=raw_data)
 
-    if 'TAX_pct_GDP' in info:
+    # Set Human Capital method to Linear Regression
+    last_hc_year = raw_data[['year', 'hc']].dropna()['year'].max()
+    if last_hc_year < end_year:
+        hc_years = list(range(int(last_hc_year) + 1, end_year + 1))
+        info['hc'] = {'method': 'Linear regression', 'years': hc_years}
+
+    # Physical Capital is already projected using investment-based method in project_capital_stock
+    # Just make sure it's correctly categorized in the info dictionary
+    if 'K_USD_bn' in merged.columns:
+        # Find the years that were projected
+        k_data = k_proj[['year', 'K_USD_bn']].copy()
+        orig_k_data = processed[['year', 'K_USD_bn']].dropna()
+        projected_years = [y for y in k_data['year'].tolist() if y not in orig_k_data['year'].tolist()]
+        if projected_years:
+            info['K_USD_bn'] = {'method': 'Investment-based projection', 'years': projected_years}
+            print(f"Setting K_USD_bn method to Investment-based projection for years {projected_years}")
+
+    # Set IMF tax revenue projections
+    if 'TAX_pct_GDP' in merged.columns:
         projected_years = [y for y in imf_tax_data['year'] if y > 2023]
         if projected_years:
             info['TAX_pct_GDP'] = {'method': 'IMF projections', 'years': projected_years}
+            print(f"Setting TAX_pct_GDP method to IMF projections for years {projected_years}")
 
     if 'TAX_pct_GDP' in merged.columns and 'GDP_USD_bn' in merged.columns:
         merged['T_USD_bn'] = (merged['TAX_pct_GDP'] / 100) * merged['GDP_USD_bn']
