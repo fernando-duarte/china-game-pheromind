@@ -2,29 +2,62 @@
 """
 China Economic Data Processor
 
-This script processes raw economic data for China and performs various transformations and calculations:
-1. Converts units (e.g., USD to billions USD for nominal values)
-2. Calculates capital stock data from Penn World Table (PWT) raw data
-3. Projects capital stock data using investment and depreciation (5% annual rate)
-4. Projects human capital data using trend extrapolation
-5. Calculates additional economic variables (e.g., net exports, capital-to-output ratio, TFP)
-6. Extrapolates all time series to 2025 using appropriate statistical methods
+This script processes raw economic data for China and performs various transformations and calculations
+to produce a comprehensive dataset of economic variables from 1960 to 2025. The data processing includes:
+
+1. Unit Conversions:
+   - Monetary values (GDP, consumption, etc.) from USD to billions USD
+   - Population and labor force from people to millions of people
+
+2. Capital Stock Calculations:
+   - Uses Penn World Table (PWT) real capital stock index (rkna)
+   - Applies price level adjustments using PWT price level data (pl_gdpo)
+   - Uses 2017 as base year with capital-output ratio of 3.0 (configurable)
+   - Projects forward using investment data with 5% annual depreciation rate
+
+3. Derived Economic Variables:
+   - Net exports (exports minus imports)
+   - Total Factor Productivity (TFP) using Cobb-Douglas production function
+   - Capital-to-output ratio over time
+   - Tax revenue in billions USD and as percentage of GDP
+   - Openness ratio (sum of exports and imports divided by GDP)
+   - Total saving (GDP minus consumption minus government spending)
+   - Private saving (GDP minus tax revenue minus consumption)
+   - Public saving (tax revenue minus government spending)
+   - Saving rate (saving divided by GDP)
+
+4. Extrapolation to 2025 using multiple statistical methods:
+   - ARIMA(1,1,1) models for GDP and its components (consumption, government, investment, exports, imports)
+   - Linear regression for population, labor force, and human capital
+   - Investment-based projection for physical capital (accumulation with depreciation)
+   - Average growth rate for variables with stable trends (FDI, tax revenue percentage, TFP)
+   - IMF projections for tax revenue (when available through 2030)
+   - Derived calculations for other variables based on the extrapolated components
 
 The script takes raw data downloaded by china_data_downloader.py and produces
 processed datasets for analysis. The output files include:
 
-1. china_data_processed.csv - Main processed dataset with all variables
-2. china_data_processed.md - Markdown version with detailed notes on computation methods
+1. china_data_processed.csv - Complete dataset with all variables in CSV format
+2. china_data_processed.md - Markdown version with detailed notes on computation methods and data sources
 
 Data sources:
-- World Bank World Development Indicators (WDI) for GDP components, FDI, population, and labor force
-- Penn World Table (PWT) version 10.01 for human capital index and capital stock related variables
+- World Bank World Development Indicators (WDI):
+  - GDP and its components (consumption, government, investment, exports, imports)
+  - Foreign Direct Investment (FDI)
+  - Exchange rates
+  - Population and labor force data
 
-Extrapolation methods used:
-- ARIMA(1,1,1) for GDP and components (with fallback to average growth rate)
-- Linear regression for population and labor force (with fallback to average growth rate)
-- Exponential smoothing for human capital (with fallback to average growth rate)
-- Capital stock projection using investment and 5% depreciation rate
+- Penn World Table (PWT) version 10.01:
+  - Real GDP (rgdpo)
+  - Capital stock (rkna)
+  - Price levels (pl_gdpo)
+  - Human capital index (hc)
+
+- International Monetary Fund (IMF) Fiscal Monitor:
+  - Tax revenue data (both historical and projections through 2030)
+  - Replaces and extends World Bank tax revenue data
+
+Compatible with Python 3.7+ (Python 3.13+ recommended)
 """
 
 # Standard library imports
@@ -155,6 +188,44 @@ def load_raw_data(data_dir=".", input_file="china_data_raw.md"):
     df = pd.DataFrame(data, columns=renamed_header)
 
     return df
+
+def load_imf_tax_revenue_data(data_dir="."):
+    """
+    Load tax revenue data from the IMF CSV file.
+    
+    Parameters:
+    -----------
+    data_dir : str
+        Directory containing the IMF data file
+        
+    Returns:
+    --------
+    pandas.DataFrame
+        DataFrame with years as rows and tax revenue (% of GDP) values
+    """
+    # Path to the IMF data file
+    imf_file = os.path.join(data_dir, "china_data/input/dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv")
+    
+    # Check if the file exists
+    if not os.path.exists(imf_file):
+        raise FileNotFoundError(f"IMF tax revenue data file not found: {imf_file}")
+    
+    # Load the IMF data
+    imf_data = pd.read_csv(imf_file)
+    
+    # Filter for the tax revenue indicator and extract relevant columns
+    tax_revenue_data = imf_data[imf_data["INDICATOR"] == "G1_S13_POGDP_PT"][["TIME_PERIOD", "OBS_VALUE"]]
+    
+    # Rename columns for consistency with our data model
+    tax_revenue_data = tax_revenue_data.rename(columns={
+        "TIME_PERIOD": "year",
+        "OBS_VALUE": "TAX_pct_GDP"
+    })
+    
+    # Convert year to integer
+    tax_revenue_data["year"] = tax_revenue_data["year"].astype(int)
+    
+    return tax_revenue_data
 
 def convert_units(raw_data):
     """
@@ -872,10 +943,10 @@ def format_data_for_output(data_df):
                 new_col_values.append('nan')
             elif isinstance(val, float):
                 # Columns requiring higher precision (e.g., percentages, indices)
-                if col_name in ['FDI (% of GDP)', 'TFP', 'Human Capital']:
+                if col_name in ['FDI (% of GDP)', 'TFP', 'Human Capital', 'Openness Ratio', 'Saving Rate']: # Ratios and Indices
                     new_col_values.append(f"{val:.4f}".rstrip('0').rstrip('.'))
                 # Columns representing billions USD, also with potentially more precision
-                elif col_name in ['GDP', 'Consumption', 'Government', 'Investment', 'Exports', 'Imports', 'Net Exports', 'Physical Capital']:
+                elif col_name in ['GDP', 'Consumption', 'Government', 'Investment', 'Exports', 'Imports', 'Net Exports', 'Physical Capital', 'Tax Revenue (bn USD)', 'Saving (bn USD)', 'Private Saving (bn USD)', 'Public Saving (bn USD)']:
                     new_col_values.append(f"{val:.4f}".rstrip('0').rstrip('.'))
                 # Other float columns (e.g., Population, Labor Force in millions)
                 elif col_name in ['Population', 'Labor Force']: # Millions
@@ -885,7 +956,7 @@ def format_data_for_output(data_df):
             elif isinstance(val, int) and col_name == 'Year':
                 new_col_values.append(str(val))
             # Handle cases where Population/Labor Force might already be float due to calculations
-            elif col_name in ['Population', 'Labor Force'] and isinstance(val, (int, float)):
+            elif col_name in ['Population', 'Labor Force'] and isinstance(val, (int, float)): # Millions
                  new_col_values.append(f"{val:.2f}".rstrip('0').rstrip('.'))
             else:
                 new_col_values.append(str(val))
@@ -912,49 +983,21 @@ def create_markdown_table(data, output_path, extrapolation_info, alpha=1/3, capi
         'Physical Capital': 'K_USD_bn',
         'TFP': 'TFP',
         'FDI (% of GDP)': 'FDI_pct_GDP',
-        'Human Capital': 'hc'
+        'Human Capital': 'hc',
+        'Tax Revenue (bn USD)': 'T_USD_bn',
+        'Openness Ratio': 'Openness_Ratio',
+        'Saving (bn USD)': 'S_USD_bn',
+        'Private Saving (bn USD)': 'S_priv_USD_bn',
+        'Public Saving (bn USD)': 'S_pub_USD_bn',
+        'Saving Rate': 'Saving_Rate'
     }
     # Data is already formatted, prepare for Jinja2
     table_headers = list(data.columns)
     table_rows = data.values.tolist()
 
-    # Determine the last year with data for each variable
-    # This part needs to operate on the original numeric data if used for logic,
-    # but for display in notes, it might need adjustment or to be done before formatting.
-    # For simplicity, we'll assume this part of the notes is descriptive and can use the string data,
-    # or this logic should be moved to operate on unformatted data if precise numeric checks are needed.
-    # The current `create_markdown_table` receives already formatted data.
-    # If `last_years` logic needs numeric data, it should be computed in `main` before formatting.
-    # For now, let's adapt it to work with potentially stringified 'nan'
-    last_years = {}
-    for col in ['GDP_USD_bn', 'C_USD_bn', 'G_USD_bn', 'I_USD_bn', 'X_USD_bn', 'M_USD_bn', 'NX_USD_bn',
-                'POP_mn', 'LF_mn', 'FDI_pct_GDP', 'TAX_pct_GDP', 'hc', 'K_USD_bn', 'TFP', 'rgdpo_bn', 'rkna', 'pl_gdpo', 'cgdpo_bn', 'K_Y_ratio']:
-        # This logic for last_years might be problematic if 'data' is already string formatted.
-        # It's better to calculate last_years on numeric data if precise checks are needed.
-        # However, for the notes, we can attempt to work with the string data.
-        # The `column_mapping` here is for the internal names to display names for notes.
-        # The `data` passed to this function now has display names as columns.
-        internal_to_display_mapping = {v: k for k, v in column_mapping.items()}
-
-        for internal_col_name in ['GDP_USD_bn', 'C_USD_bn', 'G_USD_bn', 'I_USD_bn', 'X_USD_bn', 'M_USD_bn', 'NX_USD_bn',
-                 'POP_mn', 'LF_mn', 'FDI_pct_GDP', 'TAX_pct_GDP', 'hc', 'K_USD_bn', 'TFP', 'rgdpo_bn', 'rkna', 'pl_gdpo', 'cgdpo_bn', 'K_Y_ratio']:
-            display_col_name = internal_to_display_mapping.get(internal_col_name, internal_col_name)
-            if display_col_name in data.columns:
-                last_year_val = None
-                # Iterate backwards through the 'Year' column (assuming it's sorted or find max year)
-                # This requires 'Year' to be numeric before formatting or converted back for this logic
-                # For simplicity, this part of the notes might be less robust with pre-formatted data.
-                # A better approach would be to pass last_years_info (numeric based) to this function.
-                # Given the current structure, we'll make a best effort.
-                # This part is primarily for the "Extrapolation to {end_year}" notes.
-                # The `extrapolation_info` already contains the years, so this `last_years` dict might be redundant
-                # or used for a different purpose in the original notes.
-                # For now, we'll keep it simple as the main goal is table formatting.
-                pass # Placeholder for revised last_years logic if critical for notes and pre-formatted data
-
-            # The `extrapolation_info` passed in should be the primary source for notes on extrapolation.
-            # The original `last_years` logic was to find the last non-NA year from the data itself.
-            # This is less relevant if `extrapolation_info` correctly details what was extrapolated.
+    # The `extrapolation_info` (passed to this function) is the primary source for notes on extrapolation.
+    # The `column_mapping` (defined at the start of this function) maps display names to internal DataFrame column names
+    # which are keys in `extrapolation_info`.
 
     # Group variables by extrapolation method and list years
     methods_to_variables = {}
@@ -1069,6 +1112,8 @@ This processed dataset was created by applying the following transformations to 
    Each series was extrapolated using the following methods:
 
 {{{{ methods_md }}}}
+
+Data processing was performed using Python 3.7+ (Python 3.13+ recommended).
 '''
     template = Template(template_str)
     markdown_content = template.render(
@@ -1167,6 +1212,14 @@ def main():
     except Exception as e:
         print(f"Error loading raw data: {e}")
         return
+    
+    # Load IMF tax revenue data
+    try:
+        imf_tax_data = load_imf_tax_revenue_data(data_dir=".")
+        print(f"Loaded IMF tax revenue data with {len(imf_tax_data)} rows (years {imf_tax_data['year'].min()}-{imf_tax_data['year'].max()}).")
+    except Exception as e:
+        print(f"Error loading IMF tax revenue data: {e}")
+        return
 
     # Convert units
     converted_data = convert_units(raw_data)
@@ -1226,6 +1279,22 @@ def main():
 
             # Recalculate TFP after filling in human capital values
             merged_data = calculate_tfp(merged_data, alpha=alpha)
+    
+    # Replace tax revenue data with IMF data
+    if 'TAX_pct_GDP' in merged_data.columns:
+        # First, remove the existing tax revenue data
+        merged_data['TAX_pct_GDP'] = np.nan
+        
+        # Then merge with the IMF tax revenue data
+        merged_data = pd.merge(
+            merged_data,
+            imf_tax_data,
+            on='year',
+            how='left',
+            suffixes=('', '_imf')
+        )
+        
+        print("Replaced tax revenue data with IMF data.")
 
     # Calculate additional variables
     # Net exports
@@ -1244,6 +1313,16 @@ def main():
 
     # Extrapolate all series to end_year
     merged_data, extrapolation_info = extrapolate_series_to_end_year(merged_data, end_year=end_year, raw_data=raw_data)
+    
+    # Update extrapolation info for tax revenue since we're using IMF data with existing projections
+    if 'TAX_pct_GDP' in extrapolation_info:
+        # Get the years from IMF data that are beyond the last year of actual data
+        projected_years = [y for y in imf_tax_data['year'] if y > 2023]  # Assuming 2023 is the last year of actual data
+        if projected_years:
+            extrapolation_info['TAX_pct_GDP'] = {
+                'method': 'IMF projections',
+                'years': projected_years
+            }
 
     # Recalculate derived variables for extrapolated years
     # Recalculate Net Exports for all years
@@ -1257,11 +1336,103 @@ def main():
     # Recalculate TFP for all years with the provided alpha value
     merged_data = calculate_tfp(merged_data, alpha=alpha)
 
+    # Calculate Tax Revenue in billions USD
+    if 'TAX_pct_GDP' in merged_data.columns and 'GDP_USD_bn' in merged_data.columns:
+        merged_data['T_USD_bn'] = (merged_data['TAX_pct_GDP'] / 100) * merged_data['GDP_USD_bn']
+        print("Calculated Tax Revenue (bn USD).")
+
+    # Calculate Openness Ratio
+    if all(col in merged_data.columns for col in ['X_USD_bn', 'M_USD_bn', 'GDP_USD_bn']):
+        merged_data['Openness_Ratio'] = (merged_data['X_USD_bn'] + merged_data['M_USD_bn']) / merged_data['GDP_USD_bn']
+        print("Calculated Openness Ratio.")
+
+    # Calculate Saving (bn USD)
+    if all(col in merged_data.columns for col in ['GDP_USD_bn', 'C_USD_bn', 'G_USD_bn']):
+        merged_data['S_USD_bn'] = merged_data['GDP_USD_bn'] - merged_data['C_USD_bn'] - merged_data['G_USD_bn']
+        print("Calculated Saving (bn USD).")
+
+    # Calculate Private Saving (bn USD)
+    if all(col in merged_data.columns for col in ['GDP_USD_bn', 'T_USD_bn', 'C_USD_bn']):
+        merged_data['S_priv_USD_bn'] = merged_data['GDP_USD_bn'] - merged_data['T_USD_bn'] - merged_data['C_USD_bn']
+        print("Calculated Private Saving (bn USD).")
+
+    # Calculate Public Saving (bn USD)
+    if all(col in merged_data.columns for col in ['T_USD_bn', 'G_USD_bn']):
+        merged_data['S_pub_USD_bn'] = merged_data['T_USD_bn'] - merged_data['G_USD_bn']
+        print("Calculated Public Saving (bn USD).")
+
+    # Calculate Saving Rate
+    if all(col in merged_data.columns for col in ['S_USD_bn', 'GDP_USD_bn']):
+        merged_data['Saving_Rate'] = merged_data['S_USD_bn'] / merged_data['GDP_USD_bn']
+        print("Calculated Saving Rate.")
+
+
+    # Extrapolate all series to end_year
+    merged_data, extrapolation_info = extrapolate_series_to_end_year(merged_data, end_year=end_year, raw_data=raw_data)
+
+    # Recalculate derived variables for extrapolated years
+    # Recalculate Net Exports for all years
+    if all(col in merged_data.columns for col in ['X_USD_bn', 'M_USD_bn']):
+        merged_data['NX_USD_bn'] = merged_data['X_USD_bn'] - merged_data['M_USD_bn']
+
+    # Recalculate Capital-to-output ratio for all years
+    if all(col in merged_data.columns for col in ['K_USD_bn', 'GDP_USD_bn']):
+        merged_data['K_Y_ratio'] = merged_data['K_USD_bn'] / merged_data['GDP_USD_bn']
+        
+    # Recalculate Tax Revenue (bn USD) for all years
+    if 'TAX_pct_GDP' in merged_data.columns and 'GDP_USD_bn' in merged_data.columns:
+        merged_data['T_USD_bn'] = (merged_data['TAX_pct_GDP'] / 100) * merged_data['GDP_USD_bn']
+        if 'T_USD_bn' not in extrapolation_info: # Add to extrapolation info if not already handled by base series
+             extrapolation_info['T_USD_bn'] = {'method': 'Derived calculation', 'years': [y for y in range(merged_data['year'].min(), end_year + 1) if y > raw_data['year'].max()]}
+
+
+    # Recalculate Openness Ratio for all years
+    if all(col in merged_data.columns for col in ['X_USD_bn', 'M_USD_bn', 'GDP_USD_bn']):
+        merged_data['Openness_Ratio'] = (merged_data['X_USD_bn'] + merged_data['M_USD_bn']) / merged_data['GDP_USD_bn']
+        if 'Openness_Ratio' not in extrapolation_info:
+            extrapolation_info['Openness_Ratio'] = {'method': 'Derived calculation', 'years': [y for y in range(merged_data['year'].min(), end_year + 1) if y > raw_data['year'].max()]}
+
+
+    # Recalculate Saving (bn USD) for all years
+    if all(col in merged_data.columns for col in ['GDP_USD_bn', 'C_USD_bn', 'G_USD_bn']):
+        merged_data['S_USD_bn'] = merged_data['GDP_USD_bn'] - merged_data['C_USD_bn'] - merged_data['G_USD_bn']
+        if 'S_USD_bn' not in extrapolation_info:
+            extrapolation_info['S_USD_bn'] = {'method': 'Derived calculation', 'years': [y for y in range(merged_data['year'].min(), end_year + 1) if y > raw_data['year'].max()]}
+
+    # Recalculate Private Saving (bn USD) for all years
+    if all(col in merged_data.columns for col in ['GDP_USD_bn', 'T_USD_bn', 'C_USD_bn']):
+        merged_data['S_priv_USD_bn'] = merged_data['GDP_USD_bn'] - merged_data['T_USD_bn'] - merged_data['C_USD_bn']
+        if 'S_priv_USD_bn' not in extrapolation_info:
+             extrapolation_info['S_priv_USD_bn'] = {'method': 'Derived calculation', 'years': [y for y in range(merged_data['year'].min(), end_year + 1) if y > raw_data['year'].max()]}
+
+
+    # Recalculate Public Saving (bn USD) for all years
+    if all(col in merged_data.columns for col in ['T_USD_bn', 'G_USD_bn']):
+        merged_data['S_pub_USD_bn'] = merged_data['T_USD_bn'] - merged_data['G_USD_bn']
+        if 'S_pub_USD_bn' not in extrapolation_info:
+            extrapolation_info['S_pub_USD_bn'] = {'method': 'Derived calculation', 'years': [y for y in range(merged_data['year'].min(), end_year + 1) if y > raw_data['year'].max()]}
+
+    # Recalculate Saving Rate for all years
+    if all(col in merged_data.columns for col in ['S_USD_bn', 'GDP_USD_bn']):
+        merged_data['Saving_Rate'] = merged_data['S_USD_bn'] / merged_data['GDP_USD_bn']
+        if 'Saving_Rate' not in extrapolation_info:
+            extrapolation_info['Saving_Rate'] = {'method': 'Derived calculation', 'years': [y for y in range(merged_data['year'].min(), end_year + 1) if y > raw_data['year'].max()]}
+
+    # Recalculate TFP for all years with the provided alpha value
+    merged_data = calculate_tfp(merged_data, alpha=alpha)
+
     # Select and reorder columns as requested
     output_columns = [
         'year', 'GDP_USD_bn', 'C_USD_bn', 'G_USD_bn', 'I_USD_bn',
-        'X_USD_bn', 'M_USD_bn', 'NX_USD_bn', 'POP_mn', 'LF_mn',
-        'K_USD_bn', 'TFP', 'FDI_pct_GDP', 'TAX_pct_GDP', 'hc'
+        'X_USD_bn', 'M_USD_bn', 'NX_USD_bn',
+        'T_USD_bn', # Tax Revenue bn USD
+        'Openness_Ratio',
+        'S_USD_bn', # Saving
+        'S_priv_USD_bn', # Private Saving
+        'S_pub_USD_bn', # Public Saving
+        'Saving_Rate',
+        'POP_mn', 'LF_mn',
+        'K_USD_bn', 'TFP', 'FDI_pct_GDP', 'TAX_pct_GDP', 'hc' # TAX_pct_GDP is kept for reference
     ]
 
     # Rename columns to match requested format
@@ -1274,12 +1445,18 @@ def main():
         'X_USD_bn': 'Exports',
         'M_USD_bn': 'Imports',
         'NX_USD_bn': 'Net Exports',
+        'T_USD_bn': 'Tax Revenue (bn USD)',
+        'Openness_Ratio': 'Openness Ratio',
+        'S_USD_bn': 'Saving (bn USD)',
+        'S_priv_USD_bn': 'Private Saving (bn USD)',
+        'S_pub_USD_bn': 'Public Saving (bn USD)',
+        'Saving_Rate': 'Saving Rate',
         'POP_mn': 'Population',
         'LF_mn': 'Labor Force',
         'K_USD_bn': 'Physical Capital',
         'TFP': 'TFP',
         'FDI_pct_GDP': 'FDI (% of GDP)',
-        'TAX_pct_GDP': 'Tax Revenue (% of GDP)',
+        'TAX_pct_GDP': 'Tax Revenue (% of GDP)', # This is the original percentage
         'hc': 'Human Capital'
     }
 

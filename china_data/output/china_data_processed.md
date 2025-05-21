@@ -79,6 +79,7 @@ The raw data in `china_data_raw.md` comes from the following sources:
 1. **Original Data Sources**:
    - World Bank World Development Indicators (WDI) for GDP components, FDI, population, and labor force
    - Penn World Table (PWT) version 10.01 for human capital index and capital stock related variables
+   - International Monetary Fund (IMF) Fiscal Monitor for tax revenue data
 
 This processed dataset was created by applying the following transformations to the raw data:
 
@@ -126,19 +127,20 @@ This processed dataset was created by applying the following transformations to 
      - Exports (2024-2025)
      - Imports (2024-2025)
      - Net Exports (2024-2025)
-   - **Average growth rate of historical data**: 
-     - FDI (% of GDP) (2024-2025)
-     - TAX_pct_GDP (2024-2025)
+   - **Average growth rate of historical data**:
+      - FDI (% of GDP) (2024-2025)
      - rgdpo_bn (2020-2025)
      - rkna (2020-2025)
      - pl_gdpo (2020-2025)
      - cgdpo_bn (2020-2025)
      - TFP (2024-2025)
      - K_Y_ratio (2024-2025)
-   - **Linear regression**: 
-     - Population (2024-2025)
-     - Labor Force (2025)
-     - Human Capital (2020-2025)
+   - **Linear regression**:
+      - Population (2024-2025)
+      - Labor Force (2025)
+      - Human Capital (2020-2025)
+   - **IMF projections**:
+      - TAX_pct_GDP (2024-2025): Projected using official IMF Fiscal Monitor projections
    - **Investment-based projection**: 
      - Physical Capital (2024-2025): Projected using the formula K_t = K_{t-1} * (1-delta) + I_t, where delta = 0.05 (5% depreciation rate) and I_t is investment in year t
 
