@@ -10,11 +10,12 @@ from typing import Dict, Optional
 
 import pandas as pd
 
-from china_data.utils import get_output_directory
+from china_data.utils import get_output_directory, find_file
 from china_data.utils.wdi_downloader import download_wdi_data
 from china_data.utils.pwt_downloader import get_pwt_data
 from china_data.utils.imf_loader import load_imf_tax_data
 from china_data.utils.markdown_utils import render_markdown_table
+from china_data.utils.path_constants import get_search_locations_relative_to_root
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -62,6 +63,30 @@ def main():
     if not tax_data.empty:
         all_data['TAX_pct_GDP'] = tax_data
 
+    # Get IMF download date from download_date.txt if it exists
+    imf_download_date = None
+    possible_locations_relative = get_search_locations_relative_to_root()["input_files"]
+    date_file = find_file("download_date.txt", possible_locations_relative)
+    if date_file and os.path.exists(date_file):
+        try:
+            with open(date_file, 'r') as f:
+                lines = f.readlines()
+
+            # Parse the file content
+            metadata = {}
+            for line in lines:
+                line = line.strip()
+                if line and ':' in line:
+                    key, value = line.split(':', 1)
+                    metadata[key.strip()] = value.strip()
+
+            # Extract the download date
+            if 'download_date' in metadata:
+                imf_download_date = metadata['download_date']
+                logger.info(f"Found IMF download date: {imf_download_date}")
+        except Exception as e:
+            logger.error(f"Error reading download_date.txt: {e}")
+
     # Record the download date for PWT data
     pwt_download_date = datetime.now().strftime('%Y-%m-%d')
 
@@ -93,7 +118,8 @@ def main():
     # Pass download dates to the markdown renderer
     markdown_output = render_markdown_table(merged_data,
                                            wdi_date=wdi_download_date,
-                                           pwt_date=pwt_download_date)
+                                           pwt_date=pwt_download_date,
+                                           imf_date=imf_download_date)
 
     with open(os.path.join(output_dir, 'china_data_raw.md'), 'w') as f:
         f.write(markdown_output)
