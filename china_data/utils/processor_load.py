@@ -5,6 +5,7 @@ import logging
 from typing import Dict, List, Optional, Tuple, Union
 
 from china_data.utils import find_file, get_project_root, get_output_directory
+from china_data.utils.path_constants import get_default_search_locations, get_output_dir_path, get_input_dir_path
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ def load_raw_data(data_dir: str = ".", input_file: str = "china_data_raw.md") ->
     possible_locations = [
         data_dir,
         os.path.join(data_dir, "output"),
-        "china_data/output"
+        get_output_dir_path(relative_to_root=False)
     ]
     
     md_file = find_file(input_file, possible_locations)
@@ -38,14 +39,33 @@ def load_raw_data(data_dir: str = ".", input_file: str = "china_data_raw.md") ->
 
     with open(md_file, 'r') as f:
         lines = f.readlines()
+    
+    # Print the first 20 lines to debug
+    print("\nDebug: First few lines of markdown file:")
+    for i, line in enumerate(lines[:10]):
+        print(f"{i}: {line.strip()}")
+        
     header_idx = None
     for i, line in enumerate(lines):
-        if "| Year | GDP (USD)" in line or "| Year | GDP (USD) |" in line:
+        if "| Year |" in line and "GDP" in line:
             header_idx = i
+            print(f"Found header at line {i}: {line.strip()}")
             break
+            
     if header_idx is None:
         raise ValueError("Could not find table header in the markdown file.")
-    header = [h.strip() for h in lines[header_idx].strip().split('|') if h.strip()]
+        
+    header_line = lines[header_idx].strip()
+    # Clean up header line by removing leading/trailing |
+    if header_line.startswith('|'):
+        header_line = header_line[1:]
+    if header_line.endswith('|'):
+        header_line = header_line[:-1]
+        
+    # Split by | and strip whitespace
+    header = [h.strip() for h in header_line.split('|') if h.strip()]
+    print(f"Parsed header columns: {header}")
+    
     mapping = {
         'Year': 'year',
         'GDP (USD)': 'GDP_USD',
@@ -64,7 +84,13 @@ def load_raw_data(data_dir: str = ".", input_file: str = "china_data_raw.md") ->
         'PWT cgdpo': 'cgdpo',
         'PWT hc': 'hc'
     }
-    renamed = [mapping.get(col, col) for col in header]
+    
+    # Print all available columns and their mappings
+    renamed = []
+    for col in header:
+        mapped_col = mapping.get(col, col)
+        renamed.append(mapped_col)
+        print(f"Column '{col}' -> '{mapped_col}'")
     data_start_idx = header_idx + 2
     data = []
     for i in range(data_start_idx, len(lines)):
@@ -106,7 +132,7 @@ def load_imf_tax_revenue_data(data_dir: str = ".") -> pd.DataFrame:
         os.path.join(data_dir, "china_data", "input"),
         os.path.join(data_dir, "input"),
         "input",
-        "china_data/input"
+        get_input_dir_path(relative_to_root=False)
     ]
     
     imf_file = find_file(imf_filename, possible_locations)

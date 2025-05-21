@@ -42,8 +42,8 @@ def get_project_root() -> str:
                 return current_dir
 
 
-def find_file(filename: str, possible_locations: Optional[List[str]] = None, 
-              search_root: bool = True) -> Optional[str]:
+def find_file(filename: str, possible_locations: Optional[List[str]] = None,
+               search_root: bool = True) -> Optional[str]:
     """
     Find a file by searching multiple possible locations.
     
@@ -56,24 +56,15 @@ def find_file(filename: str, possible_locations: Optional[List[str]] = None,
         Full path to the found file, or None if not found
     """
     if possible_locations is None:
-        possible_locations = []
+        from china_data.utils.path_constants import get_default_search_locations
+        possible_locations = get_default_search_locations()["general"]
     
-    # Always include current directory
-    possible_locations.append(".")
-    
-    # Add china_data directory if not already in the list
-    if "china_data" not in possible_locations:
-        possible_locations.append("china_data")
-    
-    # Add common output and input directories
-    for loc in ["output", "input"]:
-        if loc not in possible_locations:
-            possible_locations.append(loc)
-            possible_locations.append(os.path.join("china_data", loc))
+    # Make a copy to avoid modifying the input
+    search_locations = possible_locations.copy()
     
     # Check all possible paths
     checked_paths = []
-    for location in possible_locations:
+    for location in search_locations:
         path = os.path.join(location, filename)
         checked_paths.append(path)
         if os.path.exists(path):
@@ -83,7 +74,7 @@ def find_file(filename: str, possible_locations: Optional[List[str]] = None,
     # Try with project root if the file wasn't found
     if search_root:
         project_root = get_project_root()
-        for location in possible_locations:
+        for location in search_locations:
             path = os.path.join(project_root, location, filename)
             checked_paths.append(path)
             if os.path.exists(path):
@@ -115,6 +106,6 @@ def get_output_directory() -> str:
     Returns:
         str: Path to the output directory
     """
-    project_root = get_project_root()
-    output_dir = os.path.join(project_root, "china_data", "output")
+    from china_data.utils.path_constants import get_output_dir_path
+    output_dir = get_output_dir_path(relative_to_root=True)
     return ensure_directory(output_dir)
