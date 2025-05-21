@@ -8,7 +8,7 @@ from china_data.utils.processor_load import load_raw_data
 from china_data.utils.processor_units import convert_units
 from china_data.utils.processor_capital import calculate_capital_stock, project_capital_stock
 from china_data.utils.processor_hc import project_human_capital
-from china_data.utils.processor_tfp import calculate_tfp
+from china_data.utils.economic_indicators import calculate_tfp, calculate_economic_indicators
 from china_data.utils.processor_extrapolation import extrapolate_series_to_end_year
 from china_data.utils.processor_output import create_markdown_table
 from statsmodels.tsa.arima.model import ARIMA
@@ -96,6 +96,42 @@ def test_calculate_tfp_with_missing_hc():
     data = pd.DataFrame({'year':[2017,2018],'GDP_USD_bn':[2.0,2.1],'K_USD_bn':[1.0,1.1],'LF_mn':[1,1.1],'hc':[1.0,np.nan]})
     out = calculate_tfp(data)
     assert 'TFP' in out.columns
+
+
+def test_calculate_economic_indicators():
+    data = pd.DataFrame({
+        'year': [2017, 2018],
+        'GDP_USD_bn': [2.0, 2.1],
+        'K_USD_bn': [1.0, 1.1],
+        'LF_mn': [1, 1.1],
+        'hc': [1.0, 1.0],
+        'X_USD_bn': [0.5, 0.6],
+        'M_USD_bn': [0.4, 0.5],
+        'C_USD_bn': [1.0, 1.1],
+        'G_USD_bn': [0.3, 0.4],
+        'TAX_pct_GDP': [20.0, 21.0]
+    })
+
+    # Create a mock logger
+    mock_logger = mock.MagicMock()
+
+    result = calculate_economic_indicators(data, alpha=1/3, logger=mock_logger)
+
+    # Check that all expected columns were added
+    assert 'NX_USD_bn' in result.columns
+    assert 'K_Y_ratio' in result.columns
+    assert 'TFP' in result.columns
+    assert 'T_USD_bn' in result.columns
+    assert 'Openness_Ratio' in result.columns
+    assert 'S_USD_bn' in result.columns
+    assert 'S_priv_USD_bn' in result.columns
+    assert 'S_pub_USD_bn' in result.columns
+    assert 'Saving_Rate' in result.columns
+
+    # Check some calculations
+    assert round(result['NX_USD_bn'].iloc[0], 4) == 0.1  # 0.5 - 0.4
+    assert round(result['T_USD_bn'].iloc[0], 4) == 0.4  # (20.0 / 100) * 2.0
+    assert round(result['S_USD_bn'].iloc[0], 4) == 0.7  # 2.0 - 1.0 - 0.3
 
 
 def test_extrapolate_series_to_end_year(monkeypatch):

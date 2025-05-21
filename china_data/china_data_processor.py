@@ -14,7 +14,7 @@ from china_data.utils.processor_load import load_raw_data, load_imf_tax_revenue_
 from china_data.utils.processor_units import convert_units
 from china_data.utils.processor_capital import calculate_capital_stock, project_capital_stock
 from china_data.utils.processor_hc import project_human_capital
-from china_data.utils.processor_tfp import calculate_tfp
+from china_data.utils.economic_indicators import calculate_economic_indicators
 from china_data.utils.processor_extrapolation import extrapolate_series_to_end_year
 from china_data.utils.processor_output import format_data_for_output, create_markdown_table
 
@@ -120,39 +120,9 @@ def main():
     else:
         logger.warning("TAX_pct_GDP column not found in processed data")
 
-    # Calculate derived columns
+    # Calculate derived economic indicators
     logger.info("Calculating derived economic indicators")
-
-    # Net exports
-    if all(c in merged.columns for c in ['X_USD_bn', 'M_USD_bn']):
-        logger.info("Calculating net exports (NX_USD_bn)")
-        merged['NX_USD_bn'] = merged['X_USD_bn'] - merged['M_USD_bn']
-    else:
-        missing = [c for c in ['X_USD_bn', 'M_USD_bn'] if c not in merged.columns]
-        logger.warning(f"Cannot calculate net exports - missing columns: {missing}")
-
-    # Capital-output ratio
-    if all(c in merged.columns for c in ['K_USD_bn', 'GDP_USD_bn']):
-        logger.info("Calculating capital-output ratio (K_Y_ratio)")
-        merged['K_Y_ratio'] = merged['K_USD_bn'] / merged['GDP_USD_bn']
-    else:
-        missing = [c for c in ['K_USD_bn', 'GDP_USD_bn'] if c not in merged.columns]
-        logger.warning(f"Cannot calculate K/Y ratio - missing columns: {missing}")
-
-    # Calculate TFP
-    logger.info(f"Calculating Total Factor Productivity with alpha={alpha}")
-    try:
-        merged = calculate_tfp(merged, alpha=alpha)
-        if 'TFP' in merged.columns:
-            non_na_count = merged['TFP'].notna().sum()
-            logger.info(f"TFP calculated for {non_na_count} years")
-        else:
-            logger.warning("TFP calculation failed - TFP column not found")
-    except Exception as e:
-        logger.error(f"Error calculating TFP: {e}")
-        # Ensure TFP column exists even if calculation fails
-        if 'TFP' not in merged.columns:
-            merged['TFP'] = np.nan
+    merged = calculate_economic_indicators(merged, alpha=alpha, logger=logger)
 
     # Extrapolate series to end year
     logger.info(f"Extrapolating series to end year {end_year}")
@@ -229,69 +199,7 @@ def main():
         if imf_tax_data.empty:
             logger.warning("No IMF tax data available")
 
-    # Calculate additional economic indicators
-    logger.info("Calculating additional economic indicators")
 
-    # Tax revenue in USD billions
-    if all(c in merged.columns for c in ['TAX_pct_GDP', 'GDP_USD_bn']):
-        logger.info("Calculating tax revenue in USD billions (T_USD_bn)")
-        merged['T_USD_bn'] = (merged['TAX_pct_GDP'] / 100) * merged['GDP_USD_bn']
-        non_na_count = merged['T_USD_bn'].notna().sum()
-        logger.info(f"Calculated T_USD_bn for {non_na_count} years")
-    else:
-        missing = [c for c in ['TAX_pct_GDP', 'GDP_USD_bn'] if c not in merged.columns]
-        logger.warning(f"Cannot calculate T_USD_bn - missing columns: {missing}")
-        merged['T_USD_bn'] = np.nan
-
-    # Openness ratio (trade as % of GDP)
-    if all(c in merged.columns for c in ['X_USD_bn', 'M_USD_bn', 'GDP_USD_bn']):
-        logger.info("Calculating trade openness ratio")
-        merged['Openness_Ratio'] = (merged['X_USD_bn'] + merged['M_USD_bn']) / merged['GDP_USD_bn']
-        non_na_count = merged['Openness_Ratio'].notna().sum()
-        logger.info(f"Calculated Openness_Ratio for {non_na_count} years")
-    else:
-        missing = [c for c in ['X_USD_bn', 'M_USD_bn', 'GDP_USD_bn'] if c not in merged.columns]
-        logger.warning(f"Cannot calculate Openness_Ratio - missing columns: {missing}")
-
-    # Total savings
-    if all(c in merged.columns for c in ['GDP_USD_bn', 'C_USD_bn', 'G_USD_bn']):
-        logger.info("Calculating total savings (S_USD_bn)")
-        merged['S_USD_bn'] = merged['GDP_USD_bn'] - merged['C_USD_bn'] - merged['G_USD_bn']
-        non_na_count = merged['S_USD_bn'].notna().sum()
-        logger.info(f"Calculated S_USD_bn for {non_na_count} years")
-    else:
-        missing = [c for c in ['GDP_USD_bn', 'C_USD_bn', 'G_USD_bn'] if c not in merged.columns]
-        logger.warning(f"Cannot calculate S_USD_bn - missing columns: {missing}")
-
-    # Private savings
-    if all(c in merged.columns for c in ['GDP_USD_bn', 'T_USD_bn', 'C_USD_bn']):
-        logger.info("Calculating private savings (S_priv_USD_bn)")
-        merged['S_priv_USD_bn'] = merged['GDP_USD_bn'] - merged['T_USD_bn'] - merged['C_USD_bn']
-        non_na_count = merged['S_priv_USD_bn'].notna().sum()
-        logger.info(f"Calculated S_priv_USD_bn for {non_na_count} years")
-    else:
-        missing = [c for c in ['GDP_USD_bn', 'T_USD_bn', 'C_USD_bn'] if c not in merged.columns]
-        logger.warning(f"Cannot calculate S_priv_USD_bn - missing columns: {missing}")
-
-    # Public savings
-    if all(c in merged.columns for c in ['T_USD_bn', 'G_USD_bn']):
-        logger.info("Calculating public savings (S_pub_USD_bn)")
-        merged['S_pub_USD_bn'] = merged['T_USD_bn'] - merged['G_USD_bn']
-        non_na_count = merged['S_pub_USD_bn'].notna().sum()
-        logger.info(f"Calculated S_pub_USD_bn for {non_na_count} years")
-    else:
-        missing = [c for c in ['T_USD_bn', 'G_USD_bn'] if c not in merged.columns]
-        logger.warning(f"Cannot calculate S_pub_USD_bn - missing columns: {missing}")
-
-    # Saving rate
-    if all(c in merged.columns for c in ['S_USD_bn', 'GDP_USD_bn']):
-        logger.info("Calculating saving rate")
-        merged['Saving_Rate'] = merged['S_USD_bn'] / merged['GDP_USD_bn']
-        non_na_count = merged['Saving_Rate'].notna().sum()
-        logger.info(f"Calculated Saving_Rate for {non_na_count} years")
-    else:
-        missing = [c for c in ['S_USD_bn', 'GDP_USD_bn'] if c not in merged.columns]
-        logger.warning(f"Cannot calculate Saving_Rate - missing columns: {missing}")
 
     # Prepare output data
     logger.info("Preparing data for output")
