@@ -1,6 +1,10 @@
+import os
 from datetime import datetime
 from jinja2 import Template
 import pandas as pd
+
+from china_data.utils import find_file
+from china_data.utils.path_constants import get_search_locations_relative_to_root
 
 
 def render_markdown_table(merged_data):
@@ -37,7 +41,16 @@ def render_markdown_table(merged_data):
 
     headers = list(display_data.columns)
     rows = display_data.values.tolist()
-    today = datetime.today().strftime('%Y-%m-%d')
+
+    # Try to read the date from the download_date.txt file
+    date_file = find_file('download_date.txt', get_search_locations_relative_to_root()["input_files"])
+    if date_file and os.path.exists(date_file):
+        with open(date_file, 'r') as f:
+            download_date = f.read().strip()
+    else:
+        # Fallback to current date if file doesn't exist
+        download_date = datetime.today().strftime('%Y-%m-%d')
+
     template = Template('''# China Economic Data
 
 Data sources:
@@ -66,6 +79,6 @@ Data sources:
 Sources:
 - World Bank WDI data: World Development Indicators, The World Bank. Available at https://databank.worldbank.org/source/world-development-indicators.
 - PWT data: Feenstra, Robert C., Robert Inklaar and Marcel P. Timmer (2015), "The Next Generation of the Penn World Table" American Economic Review, 105(10), 3150-3182. Available at https://www.ggdc.net/pwt.
-- International Monetary Fund. Fiscal Monitor (FM),  https://data.imf.org/en/datasets/IMF.FAD:FM. Accessed on {{ today }}.
+- International Monetary Fund. Fiscal Monitor (FM),  https://data.imf.org/en/datasets/IMF.FAD:FM. Accessed on {{ download_date }}.
 ''')
-    return template.render(headers=headers, rows=rows, today=today)
+    return template.render(headers=headers, rows=rows, download_date=download_date)
