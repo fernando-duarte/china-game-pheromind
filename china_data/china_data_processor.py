@@ -89,18 +89,18 @@ def main():
     logger.info("Processing tax revenue data")
     processed, tax_info = merge_tax_data(processed, imf_tax_data)
 
-    # Calculate economic indicators
-    logger.info("Calculating derived economic indicators")
-    processed = calculate_economic_indicators(processed, alpha=alpha, logger=logger)
-
-    # Extrapolate series to end year
-    logger.info(f"Extrapolating series to end year {end_year}")
+    # Extrapolate base series to end year
+    logger.info(f"Extrapolating base series to end year {end_year}")
     try:
         processed, extrapolation_info = extrapolate_series_to_end_year(processed, end_year=end_year, raw_data=raw_data)
         logger.info(f"Extrapolation complete - info contains {len(extrapolation_info)} series")
     except Exception as e:
         logger.error(f"Error during extrapolation: {e}")
         extrapolation_info = {}
+
+    # Calculate economic indicators using extrapolated variables
+    logger.info("Calculating derived economic indicators from extrapolated variables")
+    processed = calculate_economic_indicators(processed, alpha=alpha, logger=logger)
 
     # 5. DOCUMENTATION - Record projection methods
     logger.info("Recording projection methods for all variables")

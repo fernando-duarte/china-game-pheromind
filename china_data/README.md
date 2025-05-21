@@ -222,7 +222,8 @@ The data processing pipeline consists of several stages:
 2. **Unit Conversion**: Converts various units to standardized formats (billions USD, millions people)
 3. **Capital Stock Calculation**: Calculates capital stock using investment data and capital-output ratio
 4. **Projections**: Projects key variables (capital stock, human capital) to future years
-5. **Economic Indicators**: Calculates derived indicators like:
+5. **Data Extrapolation**: Extends base time series to end year using appropriate statistical methods
+6. **Economic Indicators**: Calculates derived indicators like:
    - Total Factor Productivity (TFP)
    - Net exports
    - Capital-output ratio
@@ -230,8 +231,9 @@ The data processing pipeline consists of several stages:
    - Openness ratio (trade as % of GDP)
    - Total, private, and public savings
    - Saving rate
-6. **Data Extrapolation**: Extends time series to end year using appropriate statistical methods
 7. **Output Generation**: Formats results and generates output files
+
+> **Note:** Extrapolation is performed before calculating economic indicators so that derived indicators can be calculated from already-extrapolated base variables. This approach ensures consistency in the projected data and eliminates the need to separately extrapolate derived economic indicators.
 
 ## Economic Model
 
