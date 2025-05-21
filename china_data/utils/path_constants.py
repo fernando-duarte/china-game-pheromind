@@ -25,9 +25,13 @@ def get_absolute_input_path() -> str:
 def get_absolute_output_path() -> str:
     """
     Get the absolute path to the primary output directory (project_root/china_data/output).
+
+    This function ensures we always use the china_data/output directory,
+    not the output directory at the project root.
     """
     from china_data.utils import get_project_root
-    return os.path.join(get_project_root(), PACKAGE_DIR_NAME, OUTPUT_DIR_NAME)
+    project_root = get_project_root()
+    return os.path.join(project_root, PACKAGE_DIR_NAME, OUTPUT_DIR_NAME)
 
 # Common file paths relative to project root for searching
 def get_search_locations_relative_to_root() -> Dict[str, List[str]]:
