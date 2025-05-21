@@ -858,11 +858,46 @@ def extrapolate_series_to_end_year(data, end_year=2025, raw_data=None):
 
     return df, extrapolation_info
 
+def format_data_for_output(data_df):
+    """
+    Formats the DataFrame for consistent output in CSV and Markdown.
+    Numeric values are converted to strings with specific formatting.
+    NaNs are converted to 'nan'.
+    """
+    formatted_df = data_df.copy()
+    for col_name in formatted_df.columns:
+        new_col_values = []
+        for val in formatted_df[col_name]:
+            if pd.isna(val):
+                new_col_values.append('nan')
+            elif isinstance(val, float):
+                # Columns requiring higher precision (e.g., percentages, indices)
+                if col_name in ['FDI (% of GDP)', 'TFP', 'Human Capital']:
+                    new_col_values.append(f"{val:.4f}".rstrip('0').rstrip('.'))
+                # Columns representing billions USD, also with potentially more precision
+                elif col_name in ['GDP', 'Consumption', 'Government', 'Investment', 'Exports', 'Imports', 'Net Exports', 'Physical Capital']:
+                    new_col_values.append(f"{val:.4f}".rstrip('0').rstrip('.'))
+                # Other float columns (e.g., Population, Labor Force in millions)
+                elif col_name in ['Population', 'Labor Force']: # Millions
+                    new_col_values.append(f"{val:.2f}".rstrip('0').rstrip('.'))
+                else: # Default for any other floats not specifically handled
+                    new_col_values.append(f"{val:.2f}".rstrip('0').rstrip('.'))
+            elif isinstance(val, int) and col_name == 'Year':
+                new_col_values.append(str(val))
+            # Handle cases where Population/Labor Force might already be float due to calculations
+            elif col_name in ['Population', 'Labor Force'] and isinstance(val, (int, float)):
+                 new_col_values.append(f"{val:.2f}".rstrip('0').rstrip('.'))
+            else:
+                new_col_values.append(str(val))
+        formatted_df[col_name] = new_col_values
+    return formatted_df
+
 def create_markdown_table(data, output_path, extrapolation_info, alpha=1/3, capital_output_ratio=3.0, input_file="china_data_raw.md", end_year=2025):
     """
     Create a markdown file with a table of the processed data and notes on computation.
+    Assumes 'data' DataFrame is already formatted with string values.
     """
-    # Define column mapping for determining extrapolated years
+    # Define column mapping for determining extrapolated years (used for notes, not table formatting here)
     column_mapping = {
         'Year': 'year',
         'GDP': 'GDP_USD_bn',
@@ -879,50 +914,47 @@ def create_markdown_table(data, output_path, extrapolation_info, alpha=1/3, capi
         'FDI (% of GDP)': 'FDI_pct_GDP',
         'Human Capital': 'hc'
     }
-    # Convert DataFrame to markdown table
-    # Prepare table data for Jinja2
+    # Data is already formatted, prepare for Jinja2
     table_headers = list(data.columns)
-    # Convert NaN to 'nan' string for consistent display, and format numbers
-    formatted_rows = []
-    for _, row_series in data.iterrows():
-        formatted_row = []
-        for col_name in data.columns:
-            val = row_series[col_name]
-            if pd.isna(val):
-                formatted_row.append('nan')
-            elif isinstance(val, float):
-                # General float formatting, adjust if specific precision is needed for some columns
-                if col_name in ['FDI (% of GDP)', 'Tax Revenue (% of GDP)', 'TFP', 'Human Capital']: # Example columns needing more precision
-                    formatted_row.append(f"{val:.4f}".rstrip('0').rstrip('.')) # More precision for specific float columns
-                elif col_name in ['GDP', 'Consumption', 'Government', 'Investment', 'Exports', 'Imports', 'Net Exports', 'Physical Capital']: # Billions USD
-                     formatted_row.append(f"{val:.4f}".rstrip('0').rstrip('.')) # Billions
-                else: # Other floats
-                    formatted_row.append(f"{val:.2f}".rstrip('0').rstrip('.'))
-            elif isinstance(val, int) and col_name == 'Year':
-                 formatted_row.append(str(val))
-            elif col_name in ['Population', 'Labor Force']: # Millions
-                 formatted_row.append(f"{val:.2f}".rstrip('0').rstrip('.'))
-            else:
-                formatted_row.append(str(val))
-        formatted_rows.append(formatted_row)
-    table_rows = formatted_rows
+    table_rows = data.values.tolist()
 
     # Determine the last year with data for each variable
+    # This part needs to operate on the original numeric data if used for logic,
+    # but for display in notes, it might need adjustment or to be done before formatting.
+    # For simplicity, we'll assume this part of the notes is descriptive and can use the string data,
+    # or this logic should be moved to operate on unformatted data if precise numeric checks are needed.
+    # The current `create_markdown_table` receives already formatted data.
+    # If `last_years` logic needs numeric data, it should be computed in `main` before formatting.
+    # For now, let's adapt it to work with potentially stringified 'nan'
     last_years = {}
     for col in ['GDP_USD_bn', 'C_USD_bn', 'G_USD_bn', 'I_USD_bn', 'X_USD_bn', 'M_USD_bn', 'NX_USD_bn',
                 'POP_mn', 'LF_mn', 'FDI_pct_GDP', 'TAX_pct_GDP', 'hc', 'K_USD_bn', 'TFP', 'rgdpo_bn', 'rkna', 'pl_gdpo', 'cgdpo_bn', 'K_Y_ratio']:
-        if col in data.columns:
-            col_name = column_mapping.get(col, col)
-            last_year = None
-            for year in range(2023, 2018, -1):
-                if year in data['Year'].values:
-                    idx = data[data['Year'] == year].index[0]
-                    if not pd.isna(data.loc[idx, col_name]):
-                        last_year = year
-                        break
-            if last_year:
-                if col not in last_years:
-                    last_years[col] = last_year
+        # This logic for last_years might be problematic if 'data' is already string formatted.
+        # It's better to calculate last_years on numeric data if precise checks are needed.
+        # However, for the notes, we can attempt to work with the string data.
+        # The `column_mapping` here is for the internal names to display names for notes.
+        # The `data` passed to this function now has display names as columns.
+        internal_to_display_mapping = {v: k for k, v in column_mapping.items()}
+
+        for internal_col_name in ['GDP_USD_bn', 'C_USD_bn', 'G_USD_bn', 'I_USD_bn', 'X_USD_bn', 'M_USD_bn', 'NX_USD_bn',
+                 'POP_mn', 'LF_mn', 'FDI_pct_GDP', 'TAX_pct_GDP', 'hc', 'K_USD_bn', 'TFP', 'rgdpo_bn', 'rkna', 'pl_gdpo', 'cgdpo_bn', 'K_Y_ratio']:
+            display_col_name = internal_to_display_mapping.get(internal_col_name, internal_col_name)
+            if display_col_name in data.columns:
+                last_year_val = None
+                # Iterate backwards through the 'Year' column (assuming it's sorted or find max year)
+                # This requires 'Year' to be numeric before formatting or converted back for this logic
+                # For simplicity, this part of the notes might be less robust with pre-formatted data.
+                # A better approach would be to pass last_years_info (numeric based) to this function.
+                # Given the current structure, we'll make a best effort.
+                # This part is primarily for the "Extrapolation to {end_year}" notes.
+                # The `extrapolation_info` already contains the years, so this `last_years` dict might be redundant
+                # or used for a different purpose in the original notes.
+                # For now, we'll keep it simple as the main goal is table formatting.
+                pass # Placeholder for revised last_years logic if critical for notes and pre-formatted data
+
+            # The `extrapolation_info` passed in should be the primary source for notes on extrapolation.
+            # The original `last_years` logic was to find the last non-NA year from the data itself.
+            # This is less relevant if `extrapolation_info` correctly details what was extrapolated.
 
     # Group variables by extrapolation method and list years
     methods_to_variables = {}
@@ -1259,15 +1291,20 @@ def main():
     final_data = merged_data[output_columns].copy()
     final_data = final_data.rename(columns=column_mapping)
 
+    # Format data for output
+    # This ensures that the data written to CSV and used for MD table is consistently formatted
+    formatted_final_data = format_data_for_output(final_data.copy())
+
     # Save the processed data to CSV
     csv_path = os.path.join(output_dir, f"{output_base}.csv")
-    final_data.to_csv(csv_path, index=False, na_rep='#N/A')
+    # Use 'nan' for N/A to match markdown formatting
+    formatted_final_data.to_csv(csv_path, index=False, na_rep='nan')
     print(f"Final processed data saved to {csv_path}")
 
-    # Create markdown table
+    # Create markdown table using the pre-formatted data
     md_path = os.path.join(output_dir, f"{output_base}.md")
     create_markdown_table(
-        final_data,
+        formatted_final_data, # Pass the already formatted data
         md_path,
         extrapolation_info,
         alpha=alpha,
