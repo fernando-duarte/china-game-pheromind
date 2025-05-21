@@ -4,6 +4,8 @@ from datetime import datetime
 import pandas as pd
 import pandas_datareader.wb as wb
 
+from china_data.utils.download_date_utils import record_download_date
+
 logger = logging.getLogger(__name__)
 
 
@@ -24,6 +26,8 @@ def download_wdi_data(indicator_code, country_code="CN", start_year=1960, end_ye
             logger.debug(
                 "Successfully downloaded %s data with %d rows", indicator_code, len(data)
             )
+            # Record the download date
+            record_download_date('WDI')
             return data
         except Exception as e:
             if attempt < max_retries - 1:

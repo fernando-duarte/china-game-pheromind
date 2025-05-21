@@ -5,6 +5,7 @@ import pandas as pd
 
 from china_data.utils import find_file
 from china_data.utils.path_constants import get_search_locations_relative_to_root
+from china_data.utils.download_date_utils import get_download_date
 
 
 def render_markdown_table(merged_data):
@@ -42,9 +43,13 @@ def render_markdown_table(merged_data):
     headers = list(display_data.columns)
     rows = display_data.values.tolist()
 
-    # Try to read the date from the download_date.txt file
+    # Get download dates for each data source
+    imf_date = datetime.today().strftime('%Y-%m-%d')  # Default fallback
+    wdi_date = get_download_date('WDI') or datetime.today().strftime('%Y-%m-%d')
+    pwt_date = get_download_date('PWT') or datetime.today().strftime('%Y-%m-%d')
+
+    # For backward compatibility, try to read the date from the download_date.txt file
     date_file = find_file('download_date.txt', get_search_locations_relative_to_root()["input_files"])
-    download_date = datetime.today().strftime('%Y-%m-%d')  # Default fallback
 
     if date_file and os.path.exists(date_file):
         with open(date_file, 'r') as f:
@@ -60,7 +65,7 @@ def render_markdown_table(merged_data):
 
         # Extract the download date
         if 'download_date' in metadata:
-            download_date = metadata['download_date']
+            imf_date = metadata['download_date']
 
     template = Template('''# China Economic Data
 
@@ -88,8 +93,8 @@ Data sources:
 - PWT hc: Human capital index, based on years of schooling and returns to education
 
 Sources:
-- World Bank WDI data: World Development Indicators, The World Bank. Available at https://databank.worldbank.org/source/world-development-indicators.
-- PWT data: Feenstra, Robert C., Robert Inklaar and Marcel P. Timmer (2015), "The Next Generation of the Penn World Table" American Economic Review, 105(10), 3150-3182. Available at https://www.ggdc.net/pwt.
-- International Monetary Fund. Fiscal Monitor (FM),  https://data.imf.org/en/datasets/IMF.FAD:FM. Accessed on {{ download_date }}.
+- World Bank WDI data: World Development Indicators, The World Bank. Available at https://databank.worldbank.org/source/world-development-indicators. {% if wdi_date %}Accessed on {{ wdi_date }}.{% endif %}
+- PWT data: Feenstra, Robert C., Robert Inklaar and Marcel P. Timmer (2015), "The Next Generation of the Penn World Table" American Economic Review, 105(10), 3150-3182. Available at https://www.ggdc.net/pwt. {% if pwt_date %}Accessed on {{ pwt_date }}.{% endif %}
+- International Monetary Fund. Fiscal Monitor (FM),  https://data.imf.org/en/datasets/IMF.FAD:FM. Accessed on {{ imf_date }}.
 ''')
-    return template.render(headers=headers, rows=rows, download_date=download_date)
+    return template.render(headers=headers, rows=rows, imf_date=imf_date, wdi_date=wdi_date, pwt_date=pwt_date)
