@@ -29,14 +29,17 @@ def test_load_raw_data_success():
             f.write("|------|-----------|\n")
             f.write("| 2020 | 100       |\n")
 
-    df = load_raw_data(data_dir='output', input_file='china_data_raw.md')
+    # load_raw_data now searches standard output locations relative to project root.
+    # The test setup already ensures 'china_data_raw.md' is in 'output/china_data_raw.md'.
+    df = load_raw_data(input_file='china_data_raw.md')
     assert not df.empty
     assert 'GDP_USD' in df.columns
 
 
 def test_load_raw_data_missing(tmp_path):
     with pytest.raises(FileNotFoundError):
-        load_raw_data(data_dir=str(tmp_path), input_file='missing.md')
+        # load_raw_data will search standard locations. 'missing.md' should not be there.
+        load_raw_data(input_file='missing.md')
 
 
 def test_convert_units():

@@ -5,17 +5,17 @@ import logging
 from typing import Dict, List, Optional, Tuple, Union
 
 from china_data.utils import find_file, get_project_root, get_output_directory
-from china_data.utils.path_constants import get_default_search_locations, get_output_dir_path, get_input_dir_path
+from china_data.utils.path_constants import get_search_locations_relative_to_root, get_absolute_output_path, get_absolute_input_path
 
 logger = logging.getLogger(__name__)
 
 
-def load_raw_data(data_dir: str = ".", input_file: str = "china_data_raw.md") -> pd.DataFrame:
+def load_raw_data(input_file: str = "china_data_raw.md") -> pd.DataFrame:
     """
     Load raw data from a markdown table file.
+    This file is expected to be in one of the standard output locations.
     
     Args:
-        data_dir: Directory to start searching from
         input_file: Name of the input file
         
     Returns:
@@ -24,14 +24,11 @@ def load_raw_data(data_dir: str = ".", input_file: str = "china_data_raw.md") ->
     Raises:
         FileNotFoundError: If the input file cannot be found
     """
-    # Use the common find_file utility to locate the file
-    possible_locations = [
-        data_dir,
-        os.path.join(data_dir, "output"),
-        get_output_dir_path(relative_to_root=False)
-    ]
+    # Use the common find_file utility. It searches relative to project root.
+    # china_data_raw.md is an output file.
+    possible_locations_relative = get_search_locations_relative_to_root()["output_files"]
     
-    md_file = find_file(input_file, possible_locations)
+    md_file = find_file(input_file, possible_locations_relative)
     
     if md_file is None:
         raise FileNotFoundError(
@@ -115,27 +112,21 @@ def load_raw_data(data_dir: str = ".", input_file: str = "china_data_raw.md") ->
     return pd.DataFrame(data, columns=renamed)
 
 
-def load_imf_tax_revenue_data(data_dir: str = ".") -> pd.DataFrame:
+def load_imf_tax_revenue_data() -> pd.DataFrame:
     """
     Load IMF tax revenue data from CSV file.
-    
-    Args:
-        data_dir: Directory to start searching from
+    This file is expected to be in one of the standard input locations.
         
     Returns:
         DataFrame containing the tax revenue data
     """
     imf_filename = "dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv"
     
-    # Use the common find_file utility to locate the file
-    possible_locations = [
-        os.path.join(data_dir, "china_data", "input"),
-        os.path.join(data_dir, "input"),
-        "input",
-        get_input_dir_path(relative_to_root=False)
-    ]
+    # Use the common find_file utility. It searches relative to project root.
+    # The IMF file is an input file.
+    possible_locations_relative = get_search_locations_relative_to_root()["input_files"]
     
-    imf_file = find_file(imf_filename, possible_locations)
+    imf_file = find_file(imf_filename, possible_locations_relative)
     
     if imf_file is None:
         logger.warning("IMF tax revenue data file not found in any of the expected locations")

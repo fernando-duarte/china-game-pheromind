@@ -13,7 +13,7 @@ import pandas as pd
 from china_data.utils import get_output_directory, find_file
 from china_data.utils.downloader_utils import download_wdi_data, get_pwt_data
 from china_data.utils.markdown_utils import render_markdown_table
-from china_data.utils.path_constants import get_input_dir_path, get_default_search_locations
+from china_data.utils.path_constants import get_absolute_input_path, get_search_locations_relative_to_root
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -55,8 +55,10 @@ def main():
 
     # Use the common find_file utility to locate the IMF file
     imf_filename = "dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv"
-    possible_locations = get_default_search_locations()["input_files"]
-    imf_file = find_file(imf_filename, possible_locations)
+    # find_file now expects locations relative to project root,
+    # and get_search_locations_relative_to_root returns these.
+    possible_locations_relative = get_search_locations_relative_to_root()["input_files"]
+    imf_file = find_file(imf_filename, possible_locations_relative)
 
     if imf_file:
         logger.info("Found IMF Fiscal Monitor file at: %s", imf_file)

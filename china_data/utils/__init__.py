@@ -42,46 +42,39 @@ def get_project_root() -> str:
                 return current_dir
 
 
-def find_file(filename: str, possible_locations: Optional[List[str]] = None,
-               search_root: bool = True) -> Optional[str]:
+def find_file(filename: str, possible_locations_relative_to_root: Optional[List[str]] = None) -> Optional[str]:
     """
-    Find a file by searching multiple possible locations.
+    Find a file by searching multiple possible locations relative to the project root.
     
     Args:
         filename: Name of the file to find (e.g., "china_data_raw.md")
-        possible_locations: List of directories to search
-        search_root: Whether to also search in the project root
+        possible_locations_relative_to_root: List of directories relative to project root to search.
+                                            If None, uses default "general" locations.
         
     Returns:
         Full path to the found file, or None if not found
     """
-    if possible_locations is None:
-        from china_data.utils.path_constants import get_default_search_locations
-        possible_locations = get_default_search_locations()["general"]
+    project_root = get_project_root()
+
+    if possible_locations_relative_to_root is None:
+        from china_data.utils.path_constants import get_search_locations_relative_to_root
+        # These locations are already relative to the project root
+        search_locations_relative = get_search_locations_relative_to_root()["general"]
+    else:
+        search_locations_relative = possible_locations_relative_to_root
     
-    # Make a copy to avoid modifying the input
-    search_locations = possible_locations.copy()
-    
-    # Check all possible paths
     checked_paths = []
-    for location in search_locations:
-        path = os.path.join(location, filename)
+    for rel_location in search_locations_relative:
+        # Construct absolute path by joining project_root, the relative location, and filename
+        # If rel_location is an empty string (representing project root itself),
+        # os.path.join handles it correctly.
+        path = os.path.join(project_root, rel_location, filename)
         checked_paths.append(path)
         if os.path.exists(path):
             logger.info(f"Found file at: {path}")
             return path
-    
-    # Try with project root if the file wasn't found
-    if search_root:
-        project_root = get_project_root()
-        for location in search_locations:
-            path = os.path.join(project_root, location, filename)
-            checked_paths.append(path)
-            if os.path.exists(path):
-                logger.info(f"Found file at: {path}")
-                return path
-    
-    logger.warning(f"File {filename} not found in any of the expected locations: {checked_paths}")
+            
+    logger.warning(f"File '{filename}' not found. Searched in: {checked_paths}")
     return None
 
 
@@ -106,6 +99,6 @@ def get_output_directory() -> str:
     Returns:
         str: Path to the output directory
     """
-    from china_data.utils.path_constants import get_output_dir_path
-    output_dir = get_output_dir_path(relative_to_root=True)
+    from china_data.utils.path_constants import get_absolute_output_path
+    output_dir = get_absolute_output_path()
     return ensure_directory(output_dir)
