@@ -121,5 +121,5 @@ def load_imf_tax_revenue_data() -> pd.DataFrame:
         DataFrame containing the tax revenue data
     """
     # Use the dedicated IMF loader module
-    from china_data.utils.imf_loader import load_imf_tax_data
+    from china_data.utils.data_sources.imf_loader import load_imf_tax_data
     return load_imf_tax_data()

@@ -2,8 +2,8 @@
 # It re-exports functions from the new module files
 
 import logging
-from china_data.utils.wdi_downloader import download_wdi_data
-from china_data.utils.pwt_downloader import get_pwt_data
+from china_data.utils.data_sources.wdi_downloader import download_wdi_data
+from china_data.utils.data_sources.pwt_downloader import get_pwt_data
 
 logger = logging.getLogger(__name__)
 

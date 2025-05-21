@@ -7,8 +7,24 @@ import pytest
 from unittest import mock
 
 # Use relative imports when running from within the china_data directory
-from utils import wdi_downloader
-from utils import pwt_downloader
+try:
+    # When imported from project root
+    from china_data.utils.data_sources import download_wdi_data, get_pwt_data
+except ImportError:
+    # When imported from within china_data directory
+    from utils.data_sources import download_wdi_data, get_pwt_data
+
+# Create module-like objects for backward compatibility with the test code
+class wdi_downloader:
+    download_wdi_data = download_wdi_data
+    wb = __import__('pandas_datareader', fromlist=['wb']).wb
+    time = __import__('time')
+
+class pwt_downloader:
+    get_pwt_data = get_pwt_data
+    requests = __import__('requests')
+    pd = __import__('pandas', fromlist=['pd'])
+    os = __import__('os')
 
 
 def make_df(rows):

@@ -4,8 +4,15 @@ import hashlib
 import pandas as pd
 from datetime import datetime
 
-from china_data.utils import find_file
-from china_data.utils.path_constants import get_search_locations_relative_to_root
+# Handle both import scenarios (from project root or from within china_data directory)
+try:
+    # When imported from project root
+    from china_data.utils import find_file
+    from china_data.utils.path_constants import get_search_locations_relative_to_root
+except ImportError:
+    # When imported from within china_data directory
+    from utils import find_file
+    from utils.path_constants import get_search_locations_relative_to_root
 
 logger = logging.getLogger(__name__)
 
