@@ -50,11 +50,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Add to_markdown method to pandas DataFrame if it doesn't exist
-if not hasattr(pd.DataFrame, 'to_markdown'):
-    def to_markdown(df, index=True, **kwargs):
-        return tabulate(df, headers='keys', tablefmt='pipe', showindex=index, **kwargs)
-    pd.DataFrame.to_markdown = to_markdown
+# (The custom to_markdown method previously here is no longer needed as we use Jinja2 directly for table generation)
 
 def load_raw_data(data_dir=".", input_file="china_data_raw.md"):
     """
@@ -884,7 +880,32 @@ def create_markdown_table(data, output_path, extrapolation_info, alpha=1/3, capi
         'Human Capital': 'hc'
     }
     # Convert DataFrame to markdown table
-    table = data.to_markdown(index=False)
+    # Prepare table data for Jinja2
+    table_headers = list(data.columns)
+    # Convert NaN to 'nan' string for consistent display, and format numbers
+    formatted_rows = []
+    for _, row_series in data.iterrows():
+        formatted_row = []
+        for col_name in data.columns:
+            val = row_series[col_name]
+            if pd.isna(val):
+                formatted_row.append('nan')
+            elif isinstance(val, float):
+                # General float formatting, adjust if specific precision is needed for some columns
+                if col_name in ['FDI (% of GDP)', 'Tax Revenue (% of GDP)', 'TFP', 'Human Capital']: # Example columns needing more precision
+                    formatted_row.append(f"{val:.4f}".rstrip('0').rstrip('.')) # More precision for specific float columns
+                elif col_name in ['GDP', 'Consumption', 'Government', 'Investment', 'Exports', 'Imports', 'Net Exports', 'Physical Capital']: # Billions USD
+                     formatted_row.append(f"{val:.4f}".rstrip('0').rstrip('.')) # Billions
+                else: # Other floats
+                    formatted_row.append(f"{val:.2f}".rstrip('0').rstrip('.'))
+            elif isinstance(val, int) and col_name == 'Year':
+                 formatted_row.append(str(val))
+            elif col_name in ['Population', 'Labor Force']: # Millions
+                 formatted_row.append(f"{val:.2f}".rstrip('0').rstrip('.'))
+            else:
+                formatted_row.append(str(val))
+        formatted_rows.append(formatted_row)
+    table_rows = formatted_rows
 
     # Determine the last year with data for each variable
     last_years = {}
@@ -964,7 +985,10 @@ def create_markdown_table(data, output_path, extrapolation_info, alpha=1/3, capi
 
 ## Economic Variables (1960-{{{{end_year}}}})
 
-{{{{ table }}}}
+|{{% for h in table_headers %}} {{{{ h }}}} |{{% endfor %}}
+|{{% for h in table_headers %}} --- |{{% endfor %}}
+{{% for row in table_rows %}}|{{% for cell in row %}} {{{{ cell }}}} |{{% endfor %}}
+{{% endfor %}}
 
 ## Notes on Computation
 
@@ -1016,7 +1040,8 @@ This processed dataset was created by applying the following transformations to 
 '''
     template = Template(template_str)
     markdown_content = template.render(
-        table=table,
+        table_headers=table_headers,
+        table_rows=table_rows,
         input_file=input_file,
         capital_output_ratio=capital_output_ratio,
         alpha=alpha,
@@ -1236,7 +1261,7 @@ def main():
 
     # Save the processed data to CSV
     csv_path = os.path.join(output_dir, f"{output_base}.csv")
-    final_data.to_csv(csv_path, index=False)
+    final_data.to_csv(csv_path, index=False, na_rep='#N/A')
     print(f"Final processed data saved to {csv_path}")
 
     # Create markdown table

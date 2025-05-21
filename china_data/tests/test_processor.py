@@ -6,11 +6,22 @@ from unittest import mock
 
 import china_data.china_data_processor as proc
 
-RAW_MD = os.path.join(os.path.dirname(__file__), os.pardir, 'china_data', 'output', 'china_data_raw.md')
+RAW_MD = os.path.join(os.path.dirname(__file__), os.pardir, 'output', 'china_data_raw.md')
 
 
 def test_load_raw_data_success():
-    df = proc.load_raw_data(data_dir=os.path.join('china_data','output'), input_file='china_data_raw.md')
+    # Ensure the output directory and a dummy raw file exist for this test
+    # as the main script might not have run if --test is used.
+    output_dir = 'output'
+    os.makedirs(output_dir, exist_ok=True)
+    dummy_raw_md_path = os.path.join(output_dir, 'china_data_raw.md')
+    if not os.path.exists(dummy_raw_md_path):
+        with open(dummy_raw_md_path, 'w') as f:
+            f.write("| Year | GDP (USD) |\n")
+            f.write("|------|-----------|\n")
+            f.write("| 2020 | 100       |\n")
+
+    df = proc.load_raw_data(data_dir='output', input_file='china_data_raw.md')
     assert not df.empty
     assert 'GDP_USD' in df.columns
 

@@ -9,6 +9,9 @@ This package contains scripts to download, process, and analyze economic data fo
 ├── china_data_processor.py   # Processes and analyzes the data
 ├── china_growth_model.md     # Documentation on China's growth model
 ├── output/                   # Directory for all output files
+├── tests/                    # Directory for test files
+│   ├── test_downloader.py    # Tests for the downloader script
+│   └── test_processor.py     # Tests for the processor script
 ├── README.md                 # This documentation file
 ├── requirements.txt          # Python dependencies
 ├── dev-requirements.txt      # Development dependencies
@@ -57,11 +60,12 @@ The setup script supports several command-line options:
 ```
 
 Options include:
-- `--dev`: Install development dependencies
-- `--skip-run`: Skip running the data scripts
-- `-a=VALUE, --alpha=VALUE`: Capital share parameter for TFP calculation (default: 0.33)
-- `-k=VALUE, --capital-output-ratio=VALUE`: Capital-to-output ratio for base year (default: 3.0)
-- `-o=NAME, --output-file=NAME`: Base name for output files (default: china_data_processed)
+- `--dev`: Install development dependencies and run tests after data scripts.
+- `--test`: Install development dependencies and run tests only (skips data scripts).
+- `-a=VALUE, --alpha=VALUE`: Capital share parameter for TFP calculation (default: 0.33).
+- `-k=VALUE, --capital-output-ratio=VALUE`: Capital-to-output ratio for base year (default: 3.0).
+- `-o=NAME, --output-file=NAME`: Base name for output files (default: china_data_processed).
+- `--end-year=YYYY`: Last year to process/download data for (default: 2025, ignored if `--test` is used).
 
 Example:
 ```bash
@@ -122,6 +126,47 @@ If you prefer to set up manually:
    python china_data_downloader.py
    python china_data_processor.py
    ```
+
+## Running Tests
+
+There are several ways to run the automated tests:
+
+### Using the Setup Script
+
+1.  **Run tests as part of development setup**:
+    This command will install development dependencies, run the data downloader and processor, and then execute the tests.
+    ```bash
+    ./setup.sh --dev
+    ```
+
+2.  **Run tests only**:
+    This command will install development dependencies and then execute the tests, skipping the data downloader and processor scripts.
+    ```bash
+    ./setup.sh --test
+    ```
+
+### Manual Test Execution
+
+If you prefer to run tests manually:
+
+1.  Ensure you have activated the virtual environment:
+    ```bash
+    source venv/bin/activate
+    ```
+2.  Ensure development dependencies are installed:
+    ```bash
+    pip install -r dev-requirements.txt
+    ```
+3.  Navigate to the `china_data` directory (if not already there).
+4.  Run pytest:
+    ```bash
+    python -m pytest
+    ```
+    Or simply:
+    ```bash
+    pytest
+    ```
+    Pytest will automatically discover and run tests in the `tests/` subdirectory.
 
 ## Output Files
 

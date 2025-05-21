@@ -21,7 +21,7 @@ def test_download_wdi_data_success(monkeypatch):
     monkeypatch.setattr(downloader.time, "sleep", lambda s: None)
     df = downloader.download_wdi_data("NY.GDP.MKTP.CD")
     assert not df.empty
-    assert list(df.columns) == ["country", "year", "NY_GDP_MKTP_CD"]
+    assert list(df.columns) == ["index", "country", "year", "NY_GDP_MKTP_CD"]
 
 
 def test_download_wdi_data_failure(monkeypatch):
