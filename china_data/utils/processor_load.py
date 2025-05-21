@@ -14,55 +14,55 @@ def load_raw_data(input_file: str = "china_data_raw.md") -> pd.DataFrame:
     """
     Load raw data from a markdown table file.
     This file is expected to be in one of the standard output locations.
-    
+
     Args:
         input_file: Name of the input file
-        
+
     Returns:
         DataFrame containing the raw data
-        
+
     Raises:
         FileNotFoundError: If the input file cannot be found
     """
     # Use the common find_file utility. It searches relative to project root.
     # china_data_raw.md is an output file.
     possible_locations_relative = get_search_locations_relative_to_root()["output_files"]
-    
+
     md_file = find_file(input_file, possible_locations_relative)
-    
+
     if md_file is None:
         raise FileNotFoundError(
             f"Raw data file not found: {input_file} in any of the expected locations.")
 
     with open(md_file, 'r') as f:
         lines = f.readlines()
-    
+
     # Print the first 20 lines to debug
     print("\nDebug: First few lines of markdown file:")
     for i, line in enumerate(lines[:10]):
         print(f"{i}: {line.strip()}")
-        
+
     header_idx = None
     for i, line in enumerate(lines):
         if "| Year |" in line and "GDP" in line:
             header_idx = i
             print(f"Found header at line {i}: {line.strip()}")
             break
-            
+
     if header_idx is None:
         raise ValueError("Could not find table header in the markdown file.")
-        
+
     header_line = lines[header_idx].strip()
     # Clean up header line by removing leading/trailing |
     if header_line.startswith('|'):
         header_line = header_line[1:]
     if header_line.endswith('|'):
         header_line = header_line[:-1]
-        
+
     # Split by | and strip whitespace
     header = [h.strip() for h in header_line.split('|') if h.strip()]
     print(f"Parsed header columns: {header}")
-    
+
     mapping = {
         'Year': 'year',
         'GDP (USD)': 'GDP_USD',
@@ -81,7 +81,7 @@ def load_raw_data(input_file: str = "china_data_raw.md") -> pd.DataFrame:
         'PWT cgdpo': 'cgdpo',
         'PWT hc': 'hc'
     }
-    
+
     # Print all available columns and their mappings
     renamed = []
     for col in header:
@@ -116,26 +116,10 @@ def load_imf_tax_revenue_data() -> pd.DataFrame:
     """
     Load IMF tax revenue data from CSV file.
     This file is expected to be in one of the standard input locations.
-        
+
     Returns:
         DataFrame containing the tax revenue data
     """
-    imf_filename = "dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv"
-    
-    # Use the common find_file utility. It searches relative to project root.
-    # The IMF file is an input file.
-    possible_locations_relative = get_search_locations_relative_to_root()["input_files"]
-    
-    imf_file = find_file(imf_filename, possible_locations_relative)
-    
-    if imf_file is None:
-        logger.warning("IMF tax revenue data file not found in any of the expected locations")
-        # Return an empty DataFrame with the expected columns
-        return pd.DataFrame(columns=["year", "TAX_pct_GDP"])
-
-    logger.info(f"Found IMF tax revenue data file at: {imf_file}")
-    df = pd.read_csv(imf_file)
-    tax_data = df[df["INDICATOR"] == "G1_S13_POGDP_PT"][["TIME_PERIOD", "OBS_VALUE"]]
-    tax_data = tax_data.rename(columns={"TIME_PERIOD": "year", "OBS_VALUE": "TAX_pct_GDP"})
-    tax_data["year"] = tax_data["year"].astype(int)
-    return tax_data
+    # Use the dedicated IMF loader module
+    from china_data.utils.imf_loader import load_imf_tax_data
+    return load_imf_tax_data()
