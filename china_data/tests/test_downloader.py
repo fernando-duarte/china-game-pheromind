@@ -6,7 +6,25 @@ import pandas as pd
 import pytest
 from unittest import mock
 
-import china_data.china_data_downloader as downloader
+# Use relative imports when running from within the china_data directory
+try:
+    # When imported from project root
+    from china_data.utils.data_sources import download_wdi_data, get_pwt_data
+except ImportError:
+    # When imported from within china_data directory
+    from utils.data_sources import download_wdi_data, get_pwt_data
+
+# Create module-like objects for backward compatibility with the test code
+class wdi_downloader:
+    download_wdi_data = download_wdi_data
+    wb = __import__('pandas_datareader', fromlist=['wb']).wb
+    time = __import__('time')
+
+class pwt_downloader:
+    get_pwt_data = get_pwt_data
+    requests = __import__('requests')
+    pd = __import__('pandas', fromlist=['pd'])
+    os = __import__('os')
 
 
 def make_df(rows):
@@ -17,9 +35,9 @@ def test_download_wdi_data_success(monkeypatch):
     sample = pd.DataFrame({"country": ["CN"], "year": [2020], "NY_GDP_MKTP_CD": [1.0]})
     def fake_download(country, indicator, start, end):
         return sample
-    monkeypatch.setattr(downloader.wb, "download", fake_download)
-    monkeypatch.setattr(downloader.time, "sleep", lambda s: None)
-    df = downloader.download_wdi_data("NY.GDP.MKTP.CD")
+    monkeypatch.setattr(wdi_downloader.wb, "download", fake_download)
+    monkeypatch.setattr(wdi_downloader.time, "sleep", lambda s: None)
+    df = wdi_downloader.download_wdi_data("NY.GDP.MKTP.CD")
     assert not df.empty
     assert list(df.columns) == ["index", "country", "year", "NY_GDP_MKTP_CD"]
 
@@ -27,9 +45,9 @@ def test_download_wdi_data_success(monkeypatch):
 def test_download_wdi_data_failure(monkeypatch):
     def fail(*a, **k):
         raise RuntimeError("fail")
-    monkeypatch.setattr(downloader.wb, "download", fail)
-    monkeypatch.setattr(downloader.time, "sleep", lambda s: None)
-    df = downloader.download_wdi_data("BAD")
+    monkeypatch.setattr(wdi_downloader.wb, "download", fail)
+    monkeypatch.setattr(wdi_downloader.time, "sleep", lambda s: None)
+    df = wdi_downloader.download_wdi_data("BAD")
     assert df.empty
 
 
@@ -47,7 +65,7 @@ class DummyResponse:
 
 
 def test_get_pwt_data_success(monkeypatch, tmp_path):
-    monkeypatch.setattr(downloader.requests, "get", lambda url, stream=True: DummyResponse())
+    monkeypatch.setattr(pwt_downloader.requests, "get", lambda url, stream=True: DummyResponse())
     expected = pd.DataFrame({
         "countrycode": ["CHN"],
         "year": [2017],
@@ -57,15 +75,15 @@ def test_get_pwt_data_success(monkeypatch, tmp_path):
         "cgdpo": [4],
         "hc": [5],
     })
-    monkeypatch.setattr(downloader.pd, "read_excel", lambda path, sheet_name="Data": expected)
-    df = downloader.get_pwt_data()
+    monkeypatch.setattr(pwt_downloader.pd, "read_excel", lambda path, sheet_name="Data": expected)
+    df = pwt_downloader.get_pwt_data()
     assert list(df.columns) == ["year", "rgdpo", "rkna", "pl_gdpo", "cgdpo", "hc"]
     assert df.iloc[0]["year"] == 2017
 
 
 def test_get_pwt_data_error(monkeypatch):
     def boom(*a, **k):
-        raise downloader.requests.exceptions.HTTPError("bad")
-    monkeypatch.setattr(downloader.requests, "get", boom)
-    with pytest.raises(downloader.requests.exceptions.HTTPError):
-        downloader.get_pwt_data()
+        raise pwt_downloader.requests.exceptions.HTTPError("bad")
+    monkeypatch.setattr(pwt_downloader.requests, "get", boom)
+    with pytest.raises(pwt_downloader.requests.exceptions.HTTPError):
+        pwt_downloader.get_pwt_data()

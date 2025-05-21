@@ -1,0 +1,4 @@
+download_date: 2025-05-20
+file: dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv
+hash_algorithm: SHA-256
+hash: d375bebef4d8af24d7c259e1eddb4b54930a03b4cb31e9d1d4c64caa55c6f43f
