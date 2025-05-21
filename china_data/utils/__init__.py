@@ -45,12 +45,12 @@ def get_project_root() -> str:
 def find_file(filename: str, possible_locations_relative_to_root: Optional[List[str]] = None) -> Optional[str]:
     """
     Find a file by searching multiple possible locations relative to the project root.
-    
+
     Args:
         filename: Name of the file to find (e.g., "china_data_raw.md")
         possible_locations_relative_to_root: List of directories relative to project root to search.
                                             If None, uses default "general" locations.
-        
+
     Returns:
         Full path to the found file, or None if not found
     """
@@ -62,7 +62,7 @@ def find_file(filename: str, possible_locations_relative_to_root: Optional[List[
         search_locations_relative = get_search_locations_relative_to_root()["general"]
     else:
         search_locations_relative = possible_locations_relative_to_root
-    
+
     checked_paths = []
     for rel_location in search_locations_relative:
         # Construct absolute path by joining project_root, the relative location, and filename
@@ -73,7 +73,7 @@ def find_file(filename: str, possible_locations_relative_to_root: Optional[List[
         if os.path.exists(path):
             logger.info(f"Found file at: {path}")
             return path
-            
+
     logger.warning(f"File '{filename}' not found. Searched in: {checked_paths}")
     return None
 
@@ -81,10 +81,10 @@ def find_file(filename: str, possible_locations_relative_to_root: Optional[List[
 def ensure_directory(directory: str) -> str:
     """
     Ensure a directory exists, creating it if necessary.
-    
+
     Args:
         directory: Directory path to ensure exists
-        
+
     Returns:
         The absolute path to the directory
     """
@@ -95,10 +95,19 @@ def ensure_directory(directory: str) -> str:
 def get_output_directory() -> str:
     """
     Get the path to the output directory, ensuring it exists.
-    
+
     Returns:
         str: Path to the output directory
     """
-    from china_data.utils.path_constants import get_absolute_output_path
-    output_dir = get_absolute_output_path()
+    # Get the absolute path to the china_data/output directory
+    # regardless of where the script is run from
+    from china_data.utils.path_constants import PACKAGE_DIR_NAME, OUTPUT_DIR_NAME
+
+    # First, find the project root
+    project_root = get_project_root()
+
+    # Then, construct the path to china_data/output
+    output_dir = os.path.join(project_root, PACKAGE_DIR_NAME, OUTPUT_DIR_NAME)
+
+    # Ensure the directory exists
     return ensure_directory(output_dir)

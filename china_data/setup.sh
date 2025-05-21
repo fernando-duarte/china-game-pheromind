@@ -32,7 +32,8 @@ for arg in "$@"; do
     esac
 done
 
-mkdir -p output
+# Always create the output directory in china_data/output, not in the project root
+mkdir -p "$SCRIPT_DIR/output"
 ALREADY_IN_VENV=false
 if [ -z "$VIRTUAL_ENV" ]; then
     $PYTHON_CMD -m venv venv

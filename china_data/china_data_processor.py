@@ -12,7 +12,7 @@ from china_data.utils import get_output_directory
 from china_data.utils.processor_cli import parse_arguments
 from china_data.utils.processor_load import load_raw_data, load_imf_tax_revenue_data
 from china_data.utils.processor_units import convert_units
-from china_data.utils.processor_capital import calculate_capital_stock, project_capital_stock
+from china_data.utils.capital import calculate_capital_stock, project_capital_stock
 from china_data.utils.processor_hc import project_human_capital
 from china_data.utils.economic_indicators import calculate_economic_indicators
 from china_data.utils.processor_extrapolation import extrapolate_series_to_end_year
