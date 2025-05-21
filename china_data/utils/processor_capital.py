@@ -209,7 +209,7 @@ def project_capital_stock(processed_data, end_year, delta=0.05):
         if last_k_rows.empty:
             raise ValueError(f"No capital stock data found for year {last_year_with_data}")
         
-        last_k = last_k_rows['K_USD_bn'].iloc[0]
+        last_k = last_k_rows.iloc[0]
         if pd.isna(last_k) or last_k <= 0:
             raise ValueError(f"Invalid capital stock value for year {last_year_with_data}: {last_k}")
         
