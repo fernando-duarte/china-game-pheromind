@@ -46,6 +46,9 @@ def main():
     }
 
     all_data = {}
+    # Record the download date for WDI data
+    wdi_download_date = datetime.now().strftime('%Y-%m-%d')
+
     for code, name in indicators.items():
         data = download_wdi_data(code, end_year=end_year)
         if not data.empty:
@@ -58,6 +61,9 @@ def main():
     tax_data = load_imf_tax_data()
     if not tax_data.empty:
         all_data['TAX_pct_GDP'] = tax_data
+
+    # Record the download date for PWT data
+    pwt_download_date = datetime.now().strftime('%Y-%m-%d')
 
     try:
         pwt_data = get_pwt_data()
@@ -84,7 +90,33 @@ def main():
     all_years = pd.DataFrame({'year': range(1960, end_year + 1)})
     merged_data = pd.merge(all_years, merged_data, on='year', how='left')
 
-    markdown_output = render_markdown_table(merged_data)
+    # Get the IMF download date from the download_date.txt file
+    imf_date = "2025-05-20"  # Default fallback
+    try:
+        from china_data.utils import find_file
+        from china_data.utils.path_constants import get_search_locations_relative_to_root
+
+        date_file = find_file('download_date.txt', get_search_locations_relative_to_root()["input_files"])
+        if date_file and os.path.exists(date_file):
+            with open(date_file, 'r') as f:
+                lines = f.readlines()
+
+            for line in lines:
+                line = line.strip()
+                if line and ':' in line:
+                    key, value = line.split(':', 1)
+                    if key.strip() == 'download_date':
+                        imf_date = value.strip()
+                        break
+    except Exception as e:
+        logger.warning("Could not read IMF download date: %s", e)
+
+    # Pass all download dates to the markdown renderer
+    markdown_output = render_markdown_table(merged_data,
+                                           wdi_date=wdi_download_date,
+                                           pwt_date=pwt_download_date,
+                                           imf_date=imf_date)
+
     with open(os.path.join(output_dir, 'china_data_raw.md'), 'w') as f:
         f.write(markdown_output)
     logger.info("Data download and integration complete!")

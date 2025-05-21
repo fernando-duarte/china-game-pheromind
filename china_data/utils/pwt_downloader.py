@@ -4,8 +4,6 @@ import tempfile
 import requests
 import pandas as pd
 
-from china_data.utils.download_date_utils import record_download_date
-
 logger = logging.getLogger(__name__)
 
 
@@ -37,8 +35,4 @@ def get_pwt_data():
     chn = pwt[pwt.countrycode == "CHN"].copy()
     chn_data = chn[["year", "rgdpo", "rkna", "pl_gdpo", "cgdpo", "hc"]].copy()
     chn_data["year"] = chn_data["year"].astype(int)
-
-    # Record the download date
-    record_download_date('PWT')
-
     return chn_data
