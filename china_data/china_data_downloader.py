@@ -11,7 +11,8 @@ from typing import Dict, Optional
 import pandas as pd
 
 from china_data.utils import get_output_directory, find_file
-from china_data.utils.downloader_utils import download_wdi_data, get_pwt_data
+from china_data.utils.wdi_downloader import download_wdi_data
+from china_data.utils.pwt_downloader import get_pwt_data
 from china_data.utils.markdown_utils import render_markdown_table
 from china_data.utils.path_constants import get_absolute_input_path, get_search_locations_relative_to_root
 

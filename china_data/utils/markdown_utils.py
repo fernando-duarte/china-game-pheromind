@@ -55,7 +55,7 @@ Data sources:
 **Notes:**
 - GDP and its components (Consumption, Government, Investment, Exports, Imports) are in current US dollars
 - FDI is shown as a percentage of GDP (net inflows)
-- Tax Revenue is shown as a percentage of GDP (IMF Fiscal Monitor)
+- Tax Revenue is shown as a percentage of GDP
 - Population and Labor Force are in number of people
 - PWT rgdpo: Output-side real GDP at chained PPPs (in millions of 2017 USD)
 - PWT rkna: Capital stock at constant 2017 national prices (index: 2017=1)
@@ -64,8 +64,8 @@ Data sources:
 - PWT hc: Human capital index, based on years of schooling and returns to education
 
 Sources:
-- World Bank WDI data: World Development Indicators, The World Bank. Available at https://databank.worldbank.org/source/world-development-indicators
-- PWT data: Feenstra, Robert C., Robert Inklaar and Marcel P. Timmer (2015), "The Next Generation of the Penn World Table" American Economic Review, 105(10), 3150-3182. Available at www.ggdc.net/pwt
+- World Bank WDI data: World Development Indicators, The World Bank. Available at https://databank.worldbank.org/source/world-development-indicators.
+- PWT data: Feenstra, Robert C., Robert Inklaar and Marcel P. Timmer (2015), "The Next Generation of the Penn World Table" American Economic Review, 105(10), 3150-3182. Available at https://www.ggdc.net/pwt.
 - International Monetary Fund. Fiscal Monitor (FM),  https://data.imf.org/en/datasets/IMF.FAD:FM. Accessed on {{ today }}.
 ''')
     return template.render(headers=headers, rows=rows, today=today)
