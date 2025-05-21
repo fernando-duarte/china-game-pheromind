@@ -43,7 +43,7 @@ def render_markdown_table(merged_data):
 Data sources:
 - World Bank World Development Indicators (WDI)
 - Penn World Table (PWT) version 10.01
-- International Monetary Fund. Fiscal Monitor (FM),  https://data.imf.org/en/datasets/IMF.FAD:FM. Accessed on {{ today }}.
+- International Monetary Fund. Fiscal Monitor (FM)
 
 ## Economic Data (1960-present)
 

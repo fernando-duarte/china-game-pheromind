@@ -59,6 +59,10 @@ def main():
     if 'TAX_pct_GDP' in merged.columns:
         merged['TAX_pct_GDP'] = np.nan
         merged = pd.merge(merged, imf_tax_data, on='year', how='left', suffixes=('', '_imf'))
+        # Copy the IMF tax data to the TAX_pct_GDP column
+        if 'TAX_pct_GDP_imf' in merged.columns:
+            merged.loc[~merged['TAX_pct_GDP_imf'].isna(), 'TAX_pct_GDP'] = merged.loc[~merged['TAX_pct_GDP_imf'].isna(), 'TAX_pct_GDP_imf']
+            merged = merged.drop(columns=['TAX_pct_GDP_imf'])
 
     if all(c in merged.columns for c in ['X_USD_bn', 'M_USD_bn']):
         merged['NX_USD_bn'] = merged['X_USD_bn'] - merged['M_USD_bn']

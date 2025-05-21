@@ -11,6 +11,7 @@ import pandas as pd
 
 from china_data.utils.downloader_utils import download_wdi_data, get_pwt_data
 from china_data.utils.markdown_utils import render_markdown_table
+from china_data.utils.processor_load import get_project_root
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -25,7 +26,9 @@ def main():
     args = parser.parse_args()
     end_year = args.end_year if args.end_year else datetime.now().year
 
-    output_dir = os.path.join('.', 'output')
+    # Ensure we always use the china_data/output directory regardless of where we're running from
+    project_root = get_project_root()
+    output_dir = os.path.join(project_root, 'china_data', 'output')
     os.makedirs(output_dir, exist_ok=True)
     logger.info("Output files will be saved to: %s", output_dir)
 
@@ -54,7 +57,8 @@ def main():
     possible_paths = [
         os.path.join('china_data', 'input', 'dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv'),
         os.path.join('input', 'dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv'),
-        os.path.join('.', 'input', 'dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv')
+        os.path.join('.', 'input', 'dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv'),
+        os.path.join(project_root, 'china_data', 'input', 'dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv')
     ]
 
     imf_file = None
