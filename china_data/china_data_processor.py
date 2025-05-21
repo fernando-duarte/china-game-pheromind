@@ -8,8 +8,9 @@ import pandas as pd
 import numpy as np
 
 # Use absolute imports
+from china_data.utils import get_output_directory
 from china_data.utils.processor_cli import parse_arguments
-from china_data.utils.processor_load import load_raw_data, load_imf_tax_revenue_data, get_project_root
+from china_data.utils.processor_load import load_raw_data, load_imf_tax_revenue_data
 from china_data.utils.processor_units import convert_units
 from china_data.utils.processor_capital import calculate_capital_stock, project_capital_stock
 from china_data.utils.processor_hc import project_human_capital
@@ -31,10 +32,8 @@ def main():
     capital_output_ratio = args.capital_output_ratio
     end_year = args.end_year
 
-    # Ensure we always use the china_data/output directory regardless of where we're running from
-    project_root = get_project_root()
-    output_dir = os.path.join(project_root, 'china_data', 'output')
-    os.makedirs(output_dir, exist_ok=True)
+    # Get output directory using the common utility function
+    output_dir = get_output_directory()
     logger.info(f"Output files will be saved to: {output_dir}")
 
     raw_data = load_raw_data(input_file=input_file)
@@ -109,7 +108,7 @@ def main():
     if all(c in merged.columns for c in ['S_USD_bn', 'GDP_USD_bn']):
         merged['Saving_Rate'] = merged['S_USD_bn'] / merged['GDP_USD_bn']
 
-    merged = calculate_tfp(merged, alpha=alpha)
+    # TFP has already been calculated on line 71, no need to recalculate
 
     # Define all possible output columns
     all_output_columns = ['year','GDP_USD_bn','C_USD_bn','G_USD_bn','I_USD_bn','X_USD_bn','M_USD_bn','NX_USD_bn','T_USD_bn','Openness_Ratio','S_USD_bn','S_priv_USD_bn','S_pub_USD_bn','Saving_Rate','POP_mn','LF_mn','K_USD_bn','TFP','FDI_pct_GDP','TAX_pct_GDP','hc']

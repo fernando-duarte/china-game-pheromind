@@ -2,52 +2,36 @@ import os
 import pandas as pd
 import numpy as np
 import logging
+from typing import Dict, List, Optional, Tuple, Union
+
+from china_data.utils import find_file, get_project_root, get_output_directory
+
+logger = logging.getLogger(__name__)
 
 
-def get_project_root():
+def load_raw_data(data_dir: str = ".", input_file: str = "china_data_raw.md") -> pd.DataFrame:
     """
-    Determine the project root directory.
-    If we're in the china_data directory, return the parent directory.
-    If we're already at the project root, return the current directory.
+    Load raw data from a markdown table file.
+    
+    Args:
+        data_dir: Directory to start searching from
+        input_file: Name of the input file
+        
+    Returns:
+        DataFrame containing the raw data
+        
+    Raises:
+        FileNotFoundError: If the input file cannot be found
     """
-    current_dir = os.path.abspath(os.getcwd())
-    base_dir_name = os.path.basename(current_dir)
-
-    if base_dir_name == "china_data":
-        # We're in the china_data directory
-        return os.path.dirname(current_dir)
-    else:
-        # We're either at the project root or somewhere else
-        china_data_dir = os.path.join(current_dir, "china_data")
-        if os.path.isdir(china_data_dir):
-            # We're at the project root
-            return current_dir
-        else:
-            # We're somewhere else, try to find the china_data directory
-            parent_dir = os.path.dirname(current_dir)
-            if os.path.isdir(os.path.join(parent_dir, "china_data")):
-                return parent_dir
-            else:
-                # Default to current directory if we can't determine the project root
-                return current_dir
-
-
-def load_raw_data(data_dir=".", input_file="china_data_raw.md"):
-    # Try multiple possible locations for the raw data file
-    possible_paths = [
-        os.path.join(data_dir, input_file),
-        os.path.join(data_dir, "output", input_file),
-        os.path.join("china_data", "output", input_file),
-        os.path.join(get_project_root(), "china_data", "output", input_file)
+    # Use the common find_file utility to locate the file
+    possible_locations = [
+        data_dir,
+        os.path.join(data_dir, "output"),
+        "china_data/output"
     ]
-
-    md_file = None
-    for path in possible_paths:
-        if os.path.exists(path):
-            md_file = path
-            logging.info(f"Found raw data file at: {md_file}")
-            break
-
+    
+    md_file = find_file(input_file, possible_locations)
+    
     if md_file is None:
         raise FileNotFoundError(
             f"Raw data file not found: {input_file} in any of the expected locations.")
@@ -105,28 +89,34 @@ def load_raw_data(data_dir=".", input_file="china_data_raw.md"):
     return pd.DataFrame(data, columns=renamed)
 
 
-def load_imf_tax_revenue_data(data_dir="."):
-    # Try multiple possible locations for the IMF file
-    possible_paths = [
-        os.path.join(data_dir, "china_data", "input", "dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv"),
-        os.path.join(data_dir, "input", "dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv"),
-        os.path.join("input", "dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv"),
-        os.path.join("china_data", "input", "dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv"),
-        os.path.join(get_project_root(), "china_data", "input", "dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv")
+def load_imf_tax_revenue_data(data_dir: str = ".") -> pd.DataFrame:
+    """
+    Load IMF tax revenue data from CSV file.
+    
+    Args:
+        data_dir: Directory to start searching from
+        
+    Returns:
+        DataFrame containing the tax revenue data
+    """
+    imf_filename = "dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv"
+    
+    # Use the common find_file utility to locate the file
+    possible_locations = [
+        os.path.join(data_dir, "china_data", "input"),
+        os.path.join(data_dir, "input"),
+        "input",
+        "china_data/input"
     ]
-
-    imf_file = None
-    for path in possible_paths:
-        if os.path.exists(path):
-            imf_file = path
-            break
-
+    
+    imf_file = find_file(imf_filename, possible_locations)
+    
     if imf_file is None:
-        logging.warning(f"IMF tax revenue data file not found in any of the expected locations")
+        logger.warning("IMF tax revenue data file not found in any of the expected locations")
         # Return an empty DataFrame with the expected columns
         return pd.DataFrame(columns=["year", "TAX_pct_GDP"])
 
-    logging.info(f"Found IMF tax revenue data file at: {imf_file}")
+    logger.info(f"Found IMF tax revenue data file at: {imf_file}")
     df = pd.read_csv(imf_file)
     tax_data = df[df["INDICATOR"] == "G1_S13_POGDP_PT"][["TIME_PERIOD", "OBS_VALUE"]]
     tax_data = tax_data.rename(columns={"TIME_PERIOD": "year", "OBS_VALUE": "TAX_pct_GDP"})
