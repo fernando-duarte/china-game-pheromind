@@ -9,8 +9,8 @@ from datetime import datetime
 
 import pandas as pd
 
-from .utils.downloader_utils import download_wdi_data, get_pwt_data
-from .utils.markdown_utils import render_markdown_table
+from china_data.utils.downloader_utils import download_wdi_data, get_pwt_data
+from china_data.utils.markdown_utils import render_markdown_table
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -50,8 +50,21 @@ def main():
             all_data[name] = data
         time.sleep(1)
 
-    imf_file = os.path.join('china_data', 'input', 'dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv')
-    if os.path.exists(imf_file):
+    # Try multiple possible locations for the IMF file
+    possible_paths = [
+        os.path.join('china_data', 'input', 'dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv'),
+        os.path.join('input', 'dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv'),
+        os.path.join('.', 'input', 'dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv')
+    ]
+
+    imf_file = None
+    for path in possible_paths:
+        if os.path.exists(path):
+            imf_file = path
+            break
+
+    if imf_file:
+        logger.info("Found IMF Fiscal Monitor file at: %s", imf_file)
         df = pd.read_csv(imf_file)
         df = df[(df['COUNTRY'] == 'CHN') & (df['FREQUENCY'] == 'A') & (df['INDICATOR'] == 'G1_S13_POGDP_PT')]
         tax_data = df[['TIME_PERIOD', 'OBS_VALUE']].rename(columns={'TIME_PERIOD': 'year', 'OBS_VALUE': 'TAX_pct_GDP'})
@@ -59,7 +72,7 @@ def main():
         tax_data['TAX_pct_GDP'] = pd.to_numeric(tax_data['TAX_pct_GDP'], errors='coerce')
         all_data['TAX_pct_GDP'] = tax_data
     else:
-        logger.error("IMF Fiscal Monitor file not found: %s", imf_file)
+        logger.error("IMF Fiscal Monitor file not found in any of the expected locations")
 
     try:
         pwt_data = get_pwt_data()

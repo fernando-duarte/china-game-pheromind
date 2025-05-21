@@ -3,6 +3,13 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Determine if we're in the project root or in the china_data directory
+PROJECT_ROOT="$SCRIPT_DIR"
+if [[ "$(basename "$SCRIPT_DIR")" == "china_data" ]]; then
+    # We're in the china_data directory
+    PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+fi
+
 command_exists(){ command -v "$1" &>/dev/null; }
 PYTHON_CMD=""
 if command_exists python3; then PYTHON_CMD=python3; fi
@@ -51,8 +58,21 @@ if $TEST_ONLY; then
     exit 0
 fi
 
-$PYTHON_CMD china_data_downloader.py --end-year=$END_YEAR
-$PYTHON_CMD china_data_processor.py $PROCESSOR_ARGS --end-year=$END_YEAR
+# Set up Python path to include the project root
+cd "$PROJECT_ROOT"
+export PYTHONPATH="$PYTHONPATH:$(pwd)"
+cd "$SCRIPT_DIR"
+
+# Determine how to run the Python modules based on our location
+if [[ "$(basename "$SCRIPT_DIR")" == "china_data" ]]; then
+    # We're in the china_data directory, so we need to use the china_data module prefix
+    $PYTHON_CMD -m china_data.china_data_downloader --end-year=$END_YEAR
+    $PYTHON_CMD -m china_data.china_data_processor $PROCESSOR_ARGS --end-year=$END_YEAR
+else
+    # We're already at the project root, so we can run the modules directly
+    $PYTHON_CMD -m china_data_downloader --end-year=$END_YEAR
+    $PYTHON_CMD -m china_data_processor $PROCESSOR_ARGS --end-year=$END_YEAR
+fi
 
 if $DEV; then run_tests; fi
 

@@ -7,14 +7,15 @@ import logging
 import pandas as pd
 import numpy as np
 
-from .utils.processor_cli import parse_arguments
-from .utils.processor_load import load_raw_data, load_imf_tax_revenue_data
-from .utils.processor_units import convert_units
-from .utils.processor_capital import calculate_capital_stock, project_capital_stock
-from .utils.processor_hc import project_human_capital
-from .utils.processor_tfp import calculate_tfp
-from .utils.processor_extrapolation import extrapolate_series_to_end_year
-from .utils.processor_output import format_data_for_output, create_markdown_table
+# Use absolute imports
+from china_data.utils.processor_cli import parse_arguments
+from china_data.utils.processor_load import load_raw_data, load_imf_tax_revenue_data
+from china_data.utils.processor_units import convert_units
+from china_data.utils.processor_capital import calculate_capital_stock, project_capital_stock
+from china_data.utils.processor_hc import project_human_capital
+from china_data.utils.processor_tfp import calculate_tfp
+from china_data.utils.processor_extrapolation import extrapolate_series_to_end_year
+from china_data.utils.processor_output import format_data_for_output, create_markdown_table
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -84,10 +85,16 @@ def main():
 
     merged = calculate_tfp(merged, alpha=alpha)
 
-    output_columns = ['year','GDP_USD_bn','C_USD_bn','G_USD_bn','I_USD_bn','X_USD_bn','M_USD_bn','NX_USD_bn','T_USD_bn','Openness_Ratio','S_USD_bn','S_priv_USD_bn','S_pub_USD_bn','Saving_Rate','POP_mn','LF_mn','K_USD_bn','TFP','FDI_pct_GDP','TAX_pct_GDP','hc']
+    # Define all possible output columns
+    all_output_columns = ['year','GDP_USD_bn','C_USD_bn','G_USD_bn','I_USD_bn','X_USD_bn','M_USD_bn','NX_USD_bn','T_USD_bn','Openness_Ratio','S_USD_bn','S_priv_USD_bn','S_pub_USD_bn','Saving_Rate','POP_mn','LF_mn','K_USD_bn','TFP','FDI_pct_GDP','TAX_pct_GDP','hc']
     column_map = {'year':'Year','GDP_USD_bn':'GDP','C_USD_bn':'Consumption','G_USD_bn':'Government','I_USD_bn':'Investment','X_USD_bn':'Exports','M_USD_bn':'Imports','NX_USD_bn':'Net Exports','T_USD_bn':'Tax Revenue (bn USD)','Openness_Ratio':'Openness Ratio','S_USD_bn':'Saving (bn USD)','S_priv_USD_bn':'Private Saving (bn USD)','S_pub_USD_bn':'Public Saving (bn USD)','Saving_Rate':'Saving Rate','POP_mn':'Population','LF_mn':'Labor Force','K_USD_bn':'Physical Capital','TFP':'TFP','FDI_pct_GDP':'FDI (% of GDP)','TAX_pct_GDP':'Tax Revenue (% of GDP)','hc':'Human Capital'}
+
+    # Filter to only include columns that exist in the DataFrame
+    output_columns = [col for col in all_output_columns if col in merged.columns]
+    logger.info(f"Using output columns: {output_columns}")
+
     merged = merged.drop_duplicates(subset=['year'], keep='first')
-    final_df = merged[output_columns].rename(columns=column_map)
+    final_df = merged[output_columns].rename(columns={col: column_map[col] for col in output_columns})
     formatted = format_data_for_output(final_df.copy())
 
     csv_path = os.path.join(output_dir, f"{output_base}.csv")

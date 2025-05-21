@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import numpy as np
+import logging
 
 
 def load_raw_data(data_dir=".", input_file="china_data_raw.md"):
@@ -65,9 +66,26 @@ def load_raw_data(data_dir=".", input_file="china_data_raw.md"):
 
 
 def load_imf_tax_revenue_data(data_dir="."):
-    imf_file = os.path.join(data_dir, "china_data/input/dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv")
-    if not os.path.exists(imf_file):
-        raise FileNotFoundError(f"IMF tax revenue data file not found: {imf_file}")
+    # Try multiple possible locations for the IMF file
+    possible_paths = [
+        os.path.join(data_dir, "china_data/input/dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv"),
+        os.path.join(data_dir, "input/dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv"),
+        os.path.join("input/dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv"),
+        os.path.join("china_data/input/dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv")
+    ]
+
+    imf_file = None
+    for path in possible_paths:
+        if os.path.exists(path):
+            imf_file = path
+            break
+
+    if imf_file is None:
+        logging.warning(f"IMF tax revenue data file not found in any of the expected locations")
+        # Return an empty DataFrame with the expected columns
+        return pd.DataFrame(columns=["year", "TAX_pct_GDP"])
+
+    logging.info(f"Found IMF tax revenue data file at: {imf_file}")
     df = pd.read_csv(imf_file)
     tax_data = df[df["INDICATOR"] == "G1_S13_POGDP_PT"][["TIME_PERIOD", "OBS_VALUE"]]
     tax_data = tax_data.rename(columns={"TIME_PERIOD": "year", "OBS_VALUE": "TAX_pct_GDP"})
