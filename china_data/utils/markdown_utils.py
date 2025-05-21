@@ -45,8 +45,6 @@ def render_markdown_table(merged_data):
     # Try to read the date from the download_date.txt file
     date_file = find_file('download_date.txt', get_search_locations_relative_to_root()["input_files"])
     download_date = datetime.today().strftime('%Y-%m-%d')  # Default fallback
-    file_hash = ""
-    hash_algorithm = ""
 
     if date_file and os.path.exists(date_file):
         with open(date_file, 'r') as f:
@@ -60,13 +58,9 @@ def render_markdown_table(merged_data):
                 key, value = line.split(':', 1)
                 metadata[key.strip()] = value.strip()
 
-        # Extract the download date and hash information
+        # Extract the download date
         if 'download_date' in metadata:
             download_date = metadata['download_date']
-        if 'hash' in metadata:
-            file_hash = metadata['hash']
-        if 'hash_algorithm' in metadata:
-            hash_algorithm = metadata['hash_algorithm']
 
     template = Template('''# China Economic Data
 
@@ -96,6 +90,6 @@ Data sources:
 Sources:
 - World Bank WDI data: World Development Indicators, The World Bank. Available at https://databank.worldbank.org/source/world-development-indicators.
 - PWT data: Feenstra, Robert C., Robert Inklaar and Marcel P. Timmer (2015), "The Next Generation of the Penn World Table" American Economic Review, 105(10), 3150-3182. Available at https://www.ggdc.net/pwt.
-- International Monetary Fund. Fiscal Monitor (FM),  https://data.imf.org/en/datasets/IMF.FAD:FM. Accessed on {{ download_date }}.{% if file_hash and hash_algorithm %} File integrity: {{ hash_algorithm }} hash {{ file_hash }}.{% endif %}
+- International Monetary Fund. Fiscal Monitor (FM),  https://data.imf.org/en/datasets/IMF.FAD:FM. Accessed on {{ download_date }}.
 ''')
-    return template.render(headers=headers, rows=rows, download_date=download_date, file_hash=file_hash, hash_algorithm=hash_algorithm)
+    return template.render(headers=headers, rows=rows, download_date=download_date)
