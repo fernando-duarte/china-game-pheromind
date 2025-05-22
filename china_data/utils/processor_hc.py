@@ -179,7 +179,3 @@ def project_human_capital(processed_data, end_year=2025):
     # If all else fails, return the original data
     logger.warning("All projection methods failed, returning original data")
     return hc_data
-
-
-# The private helper functions are no longer needed as they're replaced
-# by the reusable extrapolation methods in china_data/utils/extrapolation_methods/

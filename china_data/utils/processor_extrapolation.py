@@ -105,7 +105,6 @@ def _apply_methods(df, years_to_add, cols, info):
 
 
 def _finalize(df, years_to_add, raw_data, cols, info, end_year):
-    # Net exports calculation removed - this is now handled in economic_indicators.py
     key_vars = ['GDP_USD_bn','C_USD_bn','G_USD_bn','I_USD_bn','X_USD_bn','M_USD_bn','POP_mn','LF_mn','FDI_pct_GDP','TAX_pct_GDP','hc','K_USD_bn']
     for year in years_to_add:
         for col in key_vars:
