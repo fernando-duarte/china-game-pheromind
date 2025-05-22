@@ -15,6 +15,7 @@ env/
 ENV/
 .venv/
 .python-version
+pip-wheel-metadata/
 
 # Python bytecode
 __pycache__/
@@ -40,6 +41,12 @@ coverage.xml
 *.cover
 .hypothesis/
 .pytest_cache/
+pytest-*.xml
+
+# Documentation
+docs/_build/
+site/
+.mkdocs_build/
 
 # Jupyter Notebook
 .ipynb_checkpoints
@@ -54,13 +61,39 @@ coverage.xml
 .spyderproject
 .spyproject
 
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
 # Data files
 # Uncomment if you want to ignore data files
 # *.csv
 # *.xlsx
 # *.xls
 # *.json
+# *.pkl
+# *.h5
+# *.parquet
+# *.feather
+
+# China data specific
+china_data/venv/
+china_data/*.csv
+china_data/*.md
+!china_data/README.md
+!china_data/china_growth_model.md
+china_data/parameters_info/
+china_data/**/*.pdf
 
 # Logs
 *.log
 logs/
+log/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*.swo
+*~

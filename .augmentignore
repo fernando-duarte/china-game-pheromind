@@ -1,0 +1,81 @@
+# Environment variables
+.env
+.env.development
+.env.local
+.env.production
+
+# Python virtual environments
+venv/
+env/
+.env/
+.venv/
+ENV/
+.python-version
+
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Data files
+# *.csv
+*.xlsx
+*.xls
+*.json
+*.npy
+*.npz
+*.pkl
+*.h5
+*.parquet
+*.feather
+*.db
+*.sqlite
+*.sqlite3
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS specific files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Git
+.git/
+.gitignore
+
+# Large binary files
+*.so
+*.dylib
+*.dll
+*.zip
+*.tar.gz
+*.tgz
+
+# Project specific
+# China data specific patterns (uncommented useful ones)
+china_data/parameters_info/
+# china_data/raw_data/
+# china_data/output/
+china_data/**/*.pdf
+
+# Logs
+*.log
+logs/
+log/
