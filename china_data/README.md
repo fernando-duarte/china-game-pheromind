@@ -235,18 +235,6 @@ The data processing pipeline consists of several stages:
 
 > **Note:** Extrapolation is performed before calculating economic indicators so that derived indicators can be calculated from already-extrapolated base variables. This approach ensures consistency in the projected data and eliminates the need to separately extrapolate derived economic indicators.
 
-## Economic Model
-
-The package implements an open-economy growth model for China, documented in `china_growth_model.md`. Key components include:
-
-- **Production Function**: Cobb-Douglas production function with TFP, physical capital, and human capital
-- **Capital Accumulation**: Investment-based capital stock evolution
-- **TFP Growth**: Base growth rate with spillover effects from trade openness and FDI
-- **Trade Equations**: Models for exports and imports with exchange rate and income elasticities
-- **Saving-Investment Balance**: National accounting identities with saving and investment
-
-The economic indicators calculated by the processor align with this theoretical framework.
-
 ## Usage Examples
 
 ### Basic Data Processing
