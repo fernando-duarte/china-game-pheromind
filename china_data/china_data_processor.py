@@ -65,21 +65,10 @@ def main():
     capital_df = calculate_capital_stock(raw_data, capital_output_ratio)
     processed, _ = merge_dataframe_column(processed, capital_df, 'K_USD_bn', "capital stock")
 
-    # 4.2 Projections
-    # Capital stock projection
-    logger.info(f"Projecting capital stock to {end_year}")
-    k_proj = project_capital_stock(processed, end_year=end_year)
-
+    # 4.2 Human Capital Projection
     # Human capital projection
     logger.info(f"Projecting human capital to {end_year}")
     hc_proj = project_human_capital(raw_data, end_year=end_year)
-
-    logger.info("Using unsmoothed capital data")
-
-    # 4.3 Merge Projections
-    # Merge capital stock projections
-    processed, k_info = merge_projections(processed, k_proj, 'K_USD_bn',
-                                         "Investment-based projection", "capital stock")
 
     # Merge human capital projections
     processed, hc_info = merge_projections(processed, hc_proj, 'hc',
@@ -89,7 +78,7 @@ def main():
     logger.info("Processing tax revenue data")
     processed, tax_info = merge_tax_data(processed, imf_tax_data)
 
-    # Extrapolate base series to end year
+    # 4.3 Extrapolate base series to end year
     logger.info(f"Extrapolating base series to end year {end_year}")
     try:
         processed, extrapolation_info = extrapolate_series_to_end_year(processed, end_year=end_year, raw_data=raw_data)
@@ -97,6 +86,15 @@ def main():
     except Exception as e:
         logger.error(f"Error during extrapolation: {e}")
         extrapolation_info = {}
+
+    # 4.4 Capital Stock Projection (after investment has been extrapolated)
+    logger.info(f"Projecting capital stock to {end_year} using extrapolated investment")
+    logger.info("Using unsmoothed capital data")
+    k_proj = project_capital_stock(processed, end_year=end_year)
+
+    # Merge capital stock projections
+    processed, k_info = merge_projections(processed, k_proj, 'K_USD_bn',
+                                         "Investment-based projection", "capital stock")
 
     # Calculate economic indicators using extrapolated variables
     logger.info("Calculating derived economic indicators from extrapolated variables")
