@@ -6,13 +6,8 @@ import pandas as pd
 import pytest
 from unittest import mock
 
-# Use relative imports when running from within the china_data directory
-try:
-    # When imported from project root
-    from china_data.utils.data_sources import download_wdi_data, get_pwt_data
-except ImportError:
-    # When imported from within china_data directory
-    from utils.data_sources import download_wdi_data, get_pwt_data
+# Use absolute imports consistently
+from china_data.utils.data_sources import download_wdi_data, get_pwt_data
 
 # Create module-like objects for backward compatibility with the test code
 class wdi_downloader:
