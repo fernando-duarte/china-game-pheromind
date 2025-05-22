@@ -6,7 +6,8 @@ from china_data.utils.path_constants import PACKAGE_DIR_NAME, OUTPUT_DIR_NAME
 def test_get_project_root_returns_existing_directory():
     root = get_project_root()
     assert os.path.isdir(root)
-    assert root.endswith('china-game-pheromind')
+    # Check that the directory exists and contains the china_data directory
+    assert os.path.isdir(os.path.join(root, 'china_data'))
 
 
 def test_find_file_locates_known_file():

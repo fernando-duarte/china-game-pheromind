@@ -92,10 +92,21 @@ def project_capital_stock(processed_data, end_year, delta=0.05):
             inv_row = df.loc[df['year'] == y, 'I_USD_bn']
 
             if inv_row.empty or pd.isna(inv_row.iloc[0]):
-                logger.warning(f"No investment data for year {y}, skipping projection")
-                continue
+                logger.warning(f"No investment data for year {y}, using estimated value")
+                # Estimate investment based on previous year's investment with a small growth rate
+                prev_year = y - 1
+                prev_inv_row = df.loc[df['year'] == prev_year, 'I_USD_bn']
+                if prev_inv_row.empty or pd.isna(prev_inv_row.iloc[0]):
+                    logger.warning(f"No investment data for previous year {prev_year} either, using last known value")
+                    # Use the last known investment value
+                    last_inv = df.dropna(subset=['I_USD_bn'])['I_USD_bn'].iloc[-1]
+                    inv_value = last_inv
+                else:
+                    # Use previous year's investment with a small growth rate (e.g., 5%)
+                    inv_value = prev_inv_row.iloc[0] * 1.05
+            else:
+                inv_value = inv_row.iloc[0]
 
-            inv_value = inv_row.iloc[0]
             previous_k = proj[y-1]
 
             # Apply the perpetual inventory method

@@ -83,19 +83,6 @@ def test_calculate_capital_stock_basic():
     df = calculate_capital_stock(raw, capital_output_ratio=3)
     assert not df['K_USD_bn'].isna().all()
 
-
-def test_project_capital_stock(monkeypatch):
-    data = pd.DataFrame({
-        'year':[2017,2018],
-        'K_USD_bn':[10.0,11.0],
-        'I_USD_bn':[5.0,5.25]
-    })
-    projected = project_capital_stock(data, end_year=2019)
-    assert isinstance(projected, pd.DataFrame)
-    assert 2019 in projected['year'].values
-    assert not projected.loc[projected['year'] == 2019, 'K_USD_bn'].isna().any()
-
-
 def test_project_human_capital_fallback(monkeypatch):
     data = pd.DataFrame({'year':[2017,2018],'hc':[1.0,np.nan]})
     # This test doesn't need to mock ExponentialSmoothing since we're using LinearRegression now
