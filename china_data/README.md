@@ -301,6 +301,7 @@ This will:
 3. Run tests to ensure calculations remain valid
 4. Output updated files with the most recent projections
 
+<!-- Advanced Topics section commented out
 ## Advanced Topics
 
 ### Economic Model Details
@@ -519,6 +520,7 @@ To improve the accuracy of economic projections:
   done
   ```
 - Consider external factors that might affect future projections (policy changes, demographic shifts) and adjust models accordingly
+-->
 
 ## License
 
