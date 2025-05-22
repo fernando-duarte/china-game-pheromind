@@ -28,6 +28,22 @@ The setup script will:
 
 > **Note:** The setup script can be run from inside an existing virtual environment or from outside. If run from inside an existing virtual environment, it will use that environment instead of creating a new one.
 
+### Running in GitHub Codespaces
+
+You can experiment with this repository entirely in the browser using
+[GitHub Codespaces](https://docs.github.com/en/codespaces). The provided
+development container automatically installs Python and runs the setup script
+when the codespace is created. After the container finishes building, the
+`china_data` virtual environment is activated for you. If you open a new
+terminal later, run:
+
+```bash
+source china_data/venv/bin/activate
+```
+
+All dependencies are preinstalled, so you can immediately start working with
+the data and run tests.
+
 ### Dependencies
 
 The package relies on several Python libraries:
