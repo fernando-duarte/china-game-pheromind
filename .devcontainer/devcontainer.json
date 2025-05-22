@@ -1,0 +1,23 @@
+{
+    "name": "China Data Codespace",
+    "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
+    "features": {
+        "ghcr.io/devcontainers/features/python:1": {
+            "version": "3.11",
+            "installTools": true
+        }
+    },
+    "postCreateCommand": "bash ./china_data/setup.sh --dev",
+    "postAttachCommand": "source ./china_data/venv/bin/activate",
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "python.defaultInterpreterPath": "/workspaces/china-game-pheromind/china_data/venv/bin/python"
+            },
+            "extensions": [
+                "ms-python.python",
+                "ms-toolsai.jupyter"
+            ]
+        }
+    }
+}
