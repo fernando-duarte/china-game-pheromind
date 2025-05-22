@@ -82,8 +82,9 @@ def test_project_capital_stock(monkeypatch):
         'I_USD_bn':[5.0,5.25]
     })
     projected = project_capital_stock(data, end_year=2019)
-    # Function currently returns None when insufficient information is provided
-    assert projected is None
+    assert isinstance(projected, pd.DataFrame)
+    assert 2019 in projected['year'].values
+    assert not projected.loc[projected['year'] == 2019, 'K_USD_bn'].isna().any()
 
 
 def test_project_human_capital_fallback(monkeypatch):
