@@ -1,9 +1,16 @@
+# Environment variables
+.env
+.env.development
+.env.local
+.env.production
+
 # Python virtual environments
 venv/
 env/
 .env/
 .venv/
 ENV/
+.python-version
 
 # Python bytecode and cache
 __pycache__/
@@ -25,6 +32,8 @@ build/
 *.xlsx
 *.xls
 *.json
+*.npy
+*.npz
 *.pkl
 *.h5
 *.parquet
@@ -41,7 +50,11 @@ build/
 .vscode/
 *.swp
 *.swo
+
+# OS specific files
 .DS_Store
+Thumbs.db
+desktop.ini
 
 # Git
 .git/
@@ -56,6 +69,13 @@ build/
 *.tgz
 
 # Project specific
-# Uncomment or add specific patterns for your project
+# China data specific patterns (uncommented useful ones)
+china_data/parameters_info/
 # china_data/raw_data/
 # china_data/output/
+china_data/**/*.pdf
+
+# Logs
+*.log
+logs/
+log/
