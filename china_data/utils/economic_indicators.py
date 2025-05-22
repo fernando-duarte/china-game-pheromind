@@ -134,7 +134,6 @@ def calculate_economic_indicators(merged, alpha=1/3, logger=None):
     # Openness ratio (trade as % of GDP)
     if all(c in df.columns for c in ['X_USD_bn', 'M_USD_bn', 'GDP_USD_bn']):
         logger.info("Calculating trade openness ratio")
-        # Add a small comment to verify the change
         # This is the ratio of total trade (exports + imports) to GDP
         df['Openness_Ratio'] = (df['X_USD_bn'] + df['M_USD_bn']) / df['GDP_USD_bn']
         non_na_count = df['Openness_Ratio'].notna().sum()

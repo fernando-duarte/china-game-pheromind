@@ -1,11 +1,10 @@
-import os
 import pandas as pd
 import numpy as np
 import logging
-from typing import Dict, List, Optional, Tuple, Union
 
-from china_data.utils import find_file, get_project_root, get_output_directory
-from china_data.utils.path_constants import get_search_locations_relative_to_root, get_absolute_output_path, get_absolute_input_path
+from china_data.utils import find_file
+from china_data.utils.path_constants import get_search_locations_relative_to_root
+from china_data.utils.data_sources.imf_loader import load_imf_tax_data
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +23,7 @@ def load_raw_data(input_file: str = "china_data_raw.md") -> pd.DataFrame:
     Raises:
         FileNotFoundError: If the input file cannot be found
     """
-    # Use the common find_file utility. It searches relative to project root.
-    # china_data_raw.md is an output file.
+    # Use the common find_file utility to locate the input file
     possible_locations_relative = get_search_locations_relative_to_root()["output_files"]
 
     md_file = find_file(input_file, possible_locations_relative)
@@ -121,5 +119,5 @@ def load_imf_tax_revenue_data() -> pd.DataFrame:
         DataFrame containing the tax revenue data
     """
     # Use the dedicated IMF loader module
-    from china_data.utils.data_sources.imf_loader import load_imf_tax_data
     return load_imf_tax_data()
+

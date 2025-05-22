@@ -47,20 +47,17 @@ def get_search_locations_relative_to_root() -> Dict[str, List[str]]:
 
     return {
         "input_files": [
-            primary_input_path_relative, # Only <project_root>/china_data/input
+            primary_input_path_relative,
         ],
         "output_files": [
-            primary_output_path_relative, # Only <project_root>/china_data/output
+            primary_output_path_relative,
         ],
-        "general": [ # For general searches, we might still want broader scope, but prioritize package specific
+        "general": [
             primary_input_path_relative,
             primary_output_path_relative,
-            PACKAGE_DIR_NAME, # For files directly in project_root/china_data
-            "",  # Project root itself
-            # Consider if root INPUT_DIR_NAME and OUTPUT_DIR_NAME are ever valid for "general"
-            # For now, keeping them might be safer if some script relied on it,
-            # but ideally, all specific file types use their more specific lists.
-            INPUT_DIR_NAME, # <project_root>/input
-            OUTPUT_DIR_NAME, # <project_root>/output
+            PACKAGE_DIR_NAME,
+            "",
+            INPUT_DIR_NAME,
+            OUTPUT_DIR_NAME,
         ]
     }

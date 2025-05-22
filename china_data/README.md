@@ -222,7 +222,8 @@ The data processing pipeline consists of several stages:
 2. **Unit Conversion**: Converts various units to standardized formats (billions USD, millions people)
 3. **Capital Stock Calculation**: Calculates capital stock using investment data and capital-output ratio
 4. **Projections**: Projects key variables (capital stock, human capital) to future years
-5. **Economic Indicators**: Calculates derived indicators like:
+5. **Data Extrapolation**: Extends base time series to end year using appropriate statistical methods
+6. **Economic Indicators**: Calculates derived indicators like:
    - Total Factor Productivity (TFP)
    - Net exports
    - Capital-output ratio
@@ -230,20 +231,9 @@ The data processing pipeline consists of several stages:
    - Openness ratio (trade as % of GDP)
    - Total, private, and public savings
    - Saving rate
-6. **Data Extrapolation**: Extends time series to end year using appropriate statistical methods
 7. **Output Generation**: Formats results and generates output files
 
-## Economic Model
-
-The package implements an open-economy growth model for China, documented in `china_growth_model.md`. Key components include:
-
-- **Production Function**: Cobb-Douglas production function with TFP, physical capital, and human capital
-- **Capital Accumulation**: Investment-based capital stock evolution
-- **TFP Growth**: Base growth rate with spillover effects from trade openness and FDI
-- **Trade Equations**: Models for exports and imports with exchange rate and income elasticities
-- **Saving-Investment Balance**: National accounting identities with saving and investment
-
-The economic indicators calculated by the processor align with this theoretical framework.
+> **Note:** Extrapolation is performed before calculating economic indicators so that derived indicators can be calculated from already-extrapolated base variables. This approach ensures consistency in the projected data and eliminates the need to separately extrapolate derived economic indicators.
 
 ## Usage Examples
 
@@ -299,6 +289,7 @@ This will:
 3. Run tests to ensure calculations remain valid
 4. Output updated files with the most recent projections
 
+<!-- Advanced Topics section commented out
 ## Advanced Topics
 
 ### Economic Model Details
@@ -517,6 +508,7 @@ To improve the accuracy of economic projections:
   done
   ```
 - Consider external factors that might affect future projections (policy changes, demographic shifts) and adjust models accordingly
+-->
 
 ## License
 

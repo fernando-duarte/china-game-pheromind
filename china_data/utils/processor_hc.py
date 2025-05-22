@@ -6,9 +6,13 @@ using various statistical methods.
 """
 
 import pandas as pd
-from sklearn.linear_model import LinearRegression
 import numpy as np
 import logging
+
+from china_data.utils.extrapolation_methods import (
+    extrapolate_with_linear_regression,
+    extrapolate_with_average_growth_rate
+)
 
 logger = logging.getLogger(__name__)
 
@@ -106,11 +110,20 @@ def project_human_capital(processed_data, end_year=2025):
             # Instead of returning early, we'll fall back to using the last value method
             if len(hc_data_not_na) > 0:
                 logger.info("Falling back to last value carry-forward due to insufficient data points")
-                historical = hc_data_not_na
                 years_to_project = list(range(int(last_year_with_data) + 1, end_year + 1))
-                result = _project_with_last_value(hc_data, historical, years_to_project)
-                if result is not None:
-                    return result
+
+                # Make sure all years exist in the dataframe
+                for year in years_to_project:
+                    if year not in hc_data['year'].values:
+                        hc_data = pd.concat([hc_data, pd.DataFrame({'year': [year], 'hc': [np.nan]})], ignore_index=True)
+
+                # Use average growth rate with 0 growth (equivalent to last value carry-forward)
+                df_updated, success, method = extrapolate_with_average_growth_rate(
+                    hc_data, 'hc', years_to_project, default_growth=0.0, min_data_points=1
+                )
+                if success:
+                    logger.info(f"Successfully projected human capital using {method}")
+                    return df_updated
             return hc_data
 
         # Check if we already have data up to the end year
@@ -119,7 +132,6 @@ def project_human_capital(processed_data, end_year=2025):
             return hc_data
 
         # Determine years that need projection
-        historical = hc_data_not_na
         years_to_project = list(range(int(last_year_with_data) + 1, end_year + 1))
         logger.info(f"Will project human capital for {len(years_to_project)} years: {min(years_to_project)} to {max(years_to_project)}")
 
@@ -129,28 +141,37 @@ def project_human_capital(processed_data, end_year=2025):
             return hc_data
 
         # Try linear regression as primary method
-        try:
-            result = _project_with_linear_regression(hc_data, historical, years_to_project)
-            if result is not None:
-                return result
-        except Exception as e:
-            logger.error(f"Linear regression failed: {str(e)}")
+        df_updated, success, method = extrapolate_with_linear_regression(
+            hc_data, 'hc', years_to_project, min_data_points=2
+        )
 
-        # Try trend extrapolation as fallback
-        try:
-            result = _project_with_trend_extrapolation(hc_data, historical, years_to_project)
-            if result is not None:
-                return result
-        except Exception as e:
-            logger.error(f"Simple trend extrapolation failed: {str(e)}")
+        if success:
+            logger.info(f"Successfully projected human capital using {method}")
+            return df_updated
+        else:
+            logger.error(f"Linear regression failed: {method}")
 
-        # Last resort: just copy the last available value
-        try:
-            result = _project_with_last_value(hc_data, historical, years_to_project)
-            if result is not None:
-                return result
-        except Exception as e:
-            logger.error(f"Last value carry-forward failed: {str(e)}")
+        # Try average growth rate with a small lookback period (trend extrapolation)
+        df_updated, success, method = extrapolate_with_average_growth_rate(
+            hc_data, 'hc', years_to_project, lookback_years=2, default_growth=0.01
+        )
+
+        if success:
+            logger.info(f"Successfully projected human capital using {method}")
+            return df_updated
+        else:
+            logger.error(f"Growth trend extrapolation failed: {method}")
+
+        # Last resort: just copy the last available value (using growth rate of 0)
+        df_updated, success, method = extrapolate_with_average_growth_rate(
+            hc_data, 'hc', years_to_project, default_growth=0.0, min_data_points=1
+        )
+
+        if success:
+            logger.info(f"Successfully projected human capital using {method}")
+            return df_updated
+        else:
+            logger.error(f"Last value carry-forward failed: {method}")
 
     except Exception as e:
         logger.error(f"Unexpected error projecting human capital: {str(e)}")
@@ -158,175 +179,3 @@ def project_human_capital(processed_data, end_year=2025):
     # If all else fails, return the original data
     logger.warning("All projection methods failed, returning original data")
     return hc_data
-
-
-def _project_with_linear_regression(hc_data, historical, years_to_project):
-    """
-    Project human capital using linear regression.
-
-    Parameters:
-    -----------
-    hc_data : pandas DataFrame
-        Original data with 'year' and 'hc' columns
-    historical : pandas DataFrame
-        Non-NA subset of hc_data
-    years_to_project : list
-        List of years to project
-
-    Returns:
-    --------
-    pandas DataFrame or None
-        DataFrame with projections if successful, None otherwise
-    """
-    logger.info(f"Using linear regression based on {len(historical)} historical data points")
-
-    model = LinearRegression()
-    X = historical['year'].values.reshape(-1, 1)
-    y = historical['hc'].values
-    model.fit(X, y)
-
-    # Evaluate model fit
-    r_squared = model.score(X, y)
-    logger.info(f"Linear regression model fit: R² = {r_squared:.4f}")
-
-    if r_squared < 0.5:
-        logger.warning(f"Poor linear regression fit (R² = {r_squared:.4f})")
-
-    # Generate projections
-    proj_rows = []
-    for year in years_to_project:
-        predicted_value = model.predict([[year]])[0]
-
-        # Sanity check on projected values
-        if predicted_value < 0:
-            logger.warning(f"Negative human capital projection for year {year}: {predicted_value}")
-            predicted_value = max(0.1, historical['hc'].min())  # Use minimum historical value but at least 0.1
-
-        if predicted_value > 5:
-            logger.warning(f"Unusually high human capital projection for year {year}: {predicted_value}")
-            predicted_value = min(5, historical['hc'].max() * 1.2)  # Cap at 5 or 20% above max historical
-
-        proj_rows.append({'year': year, 'hc': round(predicted_value, 4)})
-
-    logger.info(f"Generated {len(proj_rows)} human capital projections")
-
-    if proj_rows:
-        # Create DataFrame with projections
-        proj_df = pd.DataFrame(proj_rows)
-        logger.debug(f"Projection summary: {proj_df['hc'].describe()}")
-
-        # Merge with original data
-        try:
-            logger.info("Merging projections with original data")
-            result = hc_data.copy()
-
-            # Update values using safe merge approach
-            for _, row in proj_df.iterrows():
-                result.loc[result['year'] == row['year'], 'hc'] = row['hc']
-
-            # Check if all projections were properly merged
-            merged_years = set(result.loc[result['hc'].notna(), 'year'])
-            projected_years = set(proj_df['year'])
-            missing_years = projected_years - merged_years
-
-            if missing_years:
-                logger.warning(f"Some projected years were not merged: {missing_years}")
-                # Append missing years
-                for year in missing_years:
-                    proj_row = proj_df[proj_df['year'] == year].iloc[0]
-                    new_row = pd.DataFrame({'year': [year], 'hc': [proj_row['hc']]})
-                    result = pd.concat([result, new_row], ignore_index=True)
-
-            # Sort by year for consistency
-            result = result.sort_values('year').reset_index(drop=True)
-            logger.info("Successfully merged projections with original data")
-            return result
-
-        except Exception as e:
-            logger.error(f"Error merging projections: {str(e)}")
-            # Fall back to just returning the original data with projections appended
-            logger.info("Falling back to simple append method for projections")
-            return pd.concat([hc_data, proj_df], ignore_index=True).sort_values('year')
-
-    return None
-
-
-def _project_with_trend_extrapolation(hc_data, historical, years_to_project):
-    """
-    Project human capital using simple trend extrapolation.
-
-    Parameters:
-    -----------
-    hc_data : pandas DataFrame
-        Original data with 'year' and 'hc' columns
-    historical : pandas DataFrame
-        Non-NA subset of hc_data
-    years_to_project : list
-        List of years to project
-
-    Returns:
-    --------
-    pandas DataFrame or None
-        DataFrame with projections if successful, None otherwise
-    """
-    logger.info("Falling back to simple trend extrapolation")
-
-    # Fallback: Simple trend based on last 5 years
-    recent_data = historical.sort_values('year').tail(min(5, len(historical)))
-    if len(recent_data) >= 2:
-        avg_change = (recent_data['hc'].iloc[-1] - recent_data['hc'].iloc[0]) / (len(recent_data) - 1)
-        last_value = recent_data['hc'].iloc[-1]
-
-        logger.info(f"Using simple trend with average change of {avg_change:.4f} per year")
-        proj_rows = []
-
-        for i, year in enumerate(years_to_project):
-            projected_value = last_value + avg_change * (i + 1)
-            # Ensure reasonable values
-            projected_value = max(0.1, min(5, projected_value))
-            proj_rows.append({'year': year, 'hc': round(projected_value, 4)})
-
-        if proj_rows:
-            proj_df = pd.DataFrame(proj_rows)
-            # Merge with original data using simple concatenation
-            result = pd.concat([hc_data, proj_df], ignore_index=True)
-            # Remove any duplicates by year
-            result = result.drop_duplicates(subset=['year'], keep='last')
-            result = result.sort_values('year').reset_index(drop=True)
-            return result
-    else:
-        logger.warning("Not enough recent data for trend extrapolation")
-
-    return None
-
-
-def _project_with_last_value(hc_data, historical, years_to_project):
-    """
-    Project human capital by carrying forward the last value.
-
-    Parameters:
-    -----------
-    hc_data : pandas DataFrame
-        Original data with 'year' and 'hc' columns
-    historical : pandas DataFrame
-        Non-NA subset of hc_data
-    years_to_project : list
-        List of years to project
-
-    Returns:
-    --------
-    pandas DataFrame or None
-        DataFrame with projections if successful, None otherwise
-    """
-    logger.info("Falling back to last value carry-forward")
-
-    last_value = historical['hc'].iloc[-1]
-    proj_rows = [{'year': year, 'hc': round(last_value, 4)} for year in years_to_project]
-    if proj_rows:
-        proj_df = pd.DataFrame(proj_rows)
-        result = pd.concat([hc_data, proj_df], ignore_index=True)
-        result = result.drop_duplicates(subset=['year'], keep='last')
-        result = result.sort_values('year').reset_index(drop=True)
-        return result
-
-    return None

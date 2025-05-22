@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    # 1. INITIALIZATION
+    # INITIALIZATION
     args = parse_arguments()
     input_file = args.input_file
     alpha = args.alpha
@@ -48,38 +48,27 @@ def main():
     output_dir = get_output_directory()
     logger.info(f"Output files will be saved to: {output_dir}")
 
-    # 2. DATA LOADING
+    # DATA LOADING
     logger.info("Loading raw data sources")
     raw_data = load_raw_data(input_file=input_file)
     imf_tax_data = load_imf_tax_revenue_data()
 
-    # 3. DATA PREPROCESSING
+    # DATA PREPROCESSING
     logger.info("Converting units")
     processed = convert_units(raw_data)
 
-    # 4. PROJECTIONS & CALCULATIONS
+    # PROJECTIONS & CALCULATIONS
     projection_info = {}
 
-    # 4.1 Capital Stock Calculation
+    # Capital Stock Calculation
     logger.info("Calculating capital stock")
     capital_df = calculate_capital_stock(raw_data, capital_output_ratio)
     processed, _ = merge_dataframe_column(processed, capital_df, 'K_USD_bn', "capital stock")
 
-    # 4.2 Projections
-    # Capital stock projection
-    logger.info(f"Projecting capital stock to {end_year}")
-    k_proj = project_capital_stock(processed, end_year=end_year)
-
+    # Human Capital Projection
     # Human capital projection
     logger.info(f"Projecting human capital to {end_year}")
     hc_proj = project_human_capital(raw_data, end_year=end_year)
-
-    logger.info("Using unsmoothed capital data")
-
-    # 4.3 Merge Projections
-    # Merge capital stock projections
-    processed, k_info = merge_projections(processed, k_proj, 'K_USD_bn',
-                                         "Investment-based projection", "capital stock")
 
     # Merge human capital projections
     processed, hc_info = merge_projections(processed, hc_proj, 'hc',
@@ -89,12 +78,8 @@ def main():
     logger.info("Processing tax revenue data")
     processed, tax_info = merge_tax_data(processed, imf_tax_data)
 
-    # Calculate economic indicators
-    logger.info("Calculating derived economic indicators")
-    processed = calculate_economic_indicators(processed, alpha=alpha, logger=logger)
-
-    # Extrapolate series to end year
-    logger.info(f"Extrapolating series to end year {end_year}")
+    # Extrapolate base series to end year
+    logger.info(f"Extrapolating base series to end year {end_year}")
     try:
         processed, extrapolation_info = extrapolate_series_to_end_year(processed, end_year=end_year, raw_data=raw_data)
         logger.info(f"Extrapolation complete - info contains {len(extrapolation_info)} series")
@@ -102,7 +87,20 @@ def main():
         logger.error(f"Error during extrapolation: {e}")
         extrapolation_info = {}
 
-    # 5. DOCUMENTATION - Record projection methods
+    # Capital Stock Projection (after investment has been extrapolated)
+    logger.info(f"Projecting capital stock to {end_year} using extrapolated investment")
+    logger.info("Using unsmoothed capital data")
+    k_proj = project_capital_stock(processed, end_year=end_year)
+
+    # Merge capital stock projections
+    processed, k_info = merge_projections(processed, k_proj, 'K_USD_bn',
+                                         "Investment-based projection", "capital stock")
+
+    # Calculate economic indicators using extrapolated variables
+    logger.info("Calculating derived economic indicators from extrapolated variables")
+    processed = calculate_economic_indicators(processed, alpha=alpha, logger=logger)
+
+    # DOCUMENTATION - Record projection methods
     logger.info("Recording projection methods for all variables")
 
     # Human Capital metadata
@@ -130,7 +128,7 @@ def main():
     # Update projection info with extrapolation info
     projection_info.update(extrapolation_info)
 
-    # 6. OUTPUT PREPARATION
+    # OUTPUT PREPARATION
     # Prepare output data
     logger.info("Preparing data for output")
 

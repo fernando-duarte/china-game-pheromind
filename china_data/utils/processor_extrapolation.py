@@ -1,8 +1,11 @@
 import pandas as pd
 import numpy as np
-from statsmodels.tsa.arima.model import ARIMA
-from sklearn.linear_model import LinearRegression
 import logging
+from china_data.utils.extrapolation_methods import (
+    extrapolate_with_arima,
+    extrapolate_with_linear_regression,
+    extrapolate_with_average_growth_rate
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,66 +35,76 @@ def _prepare(df, end_year):
 
 
 def _apply_methods(df, years_to_add, cols, info):
+    """
+    Apply appropriate extrapolation methods to each column based on column type.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing the data
+        years_to_add (list): List of years to add projections for
+        cols (list): List of columns to extrapolate
+        info (dict): Dictionary to store extrapolation method information
+
+    Returns:
+        tuple: (updated DataFrame, updated info dictionary)
+    """
     gdp = ['GDP_USD_bn','C_USD_bn','G_USD_bn','I_USD_bn','X_USD_bn','M_USD_bn','NX_USD_bn']
     demographic = ['POP_mn','LF_mn']
     human = ['hc']
+
     for col in cols:
         if df[col].isna().all():
             continue
+
         historical = df[['year', col]].dropna()
         if len(historical) == 0:
             continue
+
         last_year = int(historical['year'].max())
-        last_value = historical[historical['year'] == last_year][col].values[0]
         yrs = [y for y in range(last_year + 1, years_to_add[-1] + 1)]
         if not yrs:
             continue
-        if col in gdp and len(historical) >= 5:
-            try:
-                model = ARIMA(historical[col], order=(1, 1, 1))
-                model_fit = model.fit()
-                fc = model_fit.forecast(steps=len(yrs))
-                vals = fc.tolist() if hasattr(fc, 'tolist') else list(fc)
-                for i, year in enumerate(yrs):
-                    df.loc[df.year == year, col] = round(max(0, vals[i]), 4)
-                info[col] = {'method': 'ARIMA(1,1,1)', 'years': yrs}
+
+        # Determine which method to try first based on column type
+        success = False
+
+        # For GDP-related columns, try ARIMA first
+        if col in gdp:
+            df_updated, success, method = extrapolate_with_arima(
+                df, col, yrs, min_data_points=5, order=(1, 1, 1)
+            )
+            if success:
+                df = df_updated
+                info[col] = {'method': method, 'years': yrs}
                 continue
-            except Exception as e:
-                logger.warning("ARIMA failed for %s, falling back to average growth rate. Error: %s", col, e)
-        if (col in demographic or col in human) and len(historical) >= 2:
-            try:
-                X = historical['year'].values.reshape(-1,1)
-                y = historical[col].values
-                model = LinearRegression()
-                model.fit(X, y)
-                for i, year in enumerate(yrs):
-                    pred = model.predict([[year]])[0]
-                    df.loc[df.year == year, col] = round(max(0, pred), 4)
-                info[col] = {'method': 'Linear regression', 'years': yrs}
+
+        # For demographic and human capital columns, try linear regression
+        if (col in demographic or col in human) and not success:
+            df_updated, success, method = extrapolate_with_linear_regression(
+                df, col, yrs, min_data_points=2
+            )
+            if success:
+                df = df_updated
+                info[col] = {'method': method, 'years': yrs}
                 continue
-            except Exception as e:
-                logger.warning("Linear regression failed for %s, falling back to average growth rate. Error: %s", col, e)
-        if len(historical) >= 2:
-            n_years = min(4, len(historical))
-            last_years = historical[col].iloc[-n_years:].values
-            growth_rates = [(last_years[i] / last_years[i-1]) - 1 for i in range(1,len(last_years))]
-            avg_growth = sum(growth_rates) / len(growth_rates) if growth_rates else 0.03
-        else:
-            avg_growth = 0.03
-        for i, year in enumerate(yrs):
-            projected_value = last_value * (1 + avg_growth) ** (year - last_year)
-            df.loc[df.year == year, col] = round(projected_value, 4)
-        info[col] = {'method': 'Average growth rate', 'years': yrs}
+
+        # For all columns that couldn't be extrapolated with the above methods,
+        # fall back to average growth rate
+        if not success:
+            # For demographic data, use different default growth rates
+            default_growth = 0.03  # Default for most series
+            lookback = 4  # Default lookback period
+
+            df_updated, success, method = extrapolate_with_average_growth_rate(
+                df, col, yrs, lookback_years=lookback, default_growth=default_growth
+            )
+            if success:
+                df = df_updated
+                info[col] = {'method': method, 'years': yrs}
+
     return df, info
 
 
 def _finalize(df, years_to_add, raw_data, cols, info, end_year):
-    for year in years_to_add:
-        if 'X_USD_bn' in df.columns and 'M_USD_bn' in df.columns:
-            x_val = df.loc[df.year == year, 'X_USD_bn'].values[0]
-            m_val = df.loc[df.year == year, 'M_USD_bn'].values[0]
-            if not pd.isna(x_val) and not pd.isna(m_val):
-                df.loc[df.year == year, 'NX_USD_bn'] = round(x_val - m_val, 4)
     key_vars = ['GDP_USD_bn','C_USD_bn','G_USD_bn','I_USD_bn','X_USD_bn','M_USD_bn','POP_mn','LF_mn','FDI_pct_GDP','TAX_pct_GDP','hc','K_USD_bn']
     for year in years_to_add:
         for col in key_vars:

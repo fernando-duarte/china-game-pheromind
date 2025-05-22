@@ -62,90 +62,99 @@
 | 2017 | 12310.4913 | 4744.8014 | 2009.6707 | 5295.1482 | 2424.2161 | 2208.5189 | 215.6971 | 3530.0743 | 0.3763 | 5556.0192 | 4035.6156 | 1520.4036 | 0.4513 | 1396.21 | 779.17 | 6562387.33 | 0.4055 | 1.35 | 28.68 | 2.65 |
 | 2018 | 13894.9079 | 5352.5798 | 2297.6353 | 6085.063 | 2655.6092 | 2564.1219 | 91.4873 | 3951.7717 | 0.3757 | 6244.6927 | 4590.5564 | 1654.1363 | 0.4494 | 1402.76 | 776.87 | 8061319.93 | 0.4261 | 1.69 | 28.44 | 2.67 |
 | 2019 | 14279.9685 | 5604.6109 | 2394.8237 | 6176.2443 | 2628.9411 | 2496.1533 | 132.7878 | 3941.9158 | 0.3589 | 6280.5339 | 4733.4418 | 1547.0921 | 0.4398 | 1407.74 | 775.93 | 8726933.5 | 0.4236 | 1.31 | 27.6 | 2.7 |
-| 2020 | 14687.7442 | 5610.7642 | 2516.0302 | 6369.5862 | 2729.8846 | 2374.7375 | 355.1471 | 3712.3458 | 0.3475 | 6560.9498 | 5364.6342 | 1196.3157 | 0.4467 | 1411.1 | 763.83 | 10042623.0222 | 0.4359 | 1.72 | 25.28 | 2.7469 |
-| 2021 | 17820.4595 | 6792.0125 | 2817.0829 | 7687.7995 | 3554.1078 | 3093.2784 | 460.8294 | 4634.9597 | 0.373 | 8211.3641 | 6393.4873 | 1817.8768 | 0.4608 | 1412.36 | 781.19 | 11556668.464 | 0.4485 | 1.93 | 26.01 | 2.7724 |
-| 2022 | 17881.7827 | 6686.3224 | 2870.049 | 7715.3191 | 3717.8878 | 3140.0409 | 577.847 | 4528.119 | 0.3835 | 8325.4114 | 6667.3413 | 1658.07 | 0.4656 | 1412.17 | 770.11 | 13298974.3507 | 0.4616 | 1.06 | 25.32 | 2.7978 |
-| 2023 | 17794.783 | 6962.836 | 2937.7961 | 7487.8581 | 3513.2369 | 3127.2016 | 386.0353 | 4631.2119 | 0.3732 | 7894.1509 | 6200.7352 | 1693.4158 | 0.4436 | 1410.71 | 774.61 | 15303953.6724 | 0.475 | 0.24 | 26.03 | 2.8233 |
-| 2024 | 18505.4579 | 7277.0805 | 3049.3865 | 7728.9757 | 3497.136 | 3211.8473 | 285.2887 | 5014.4324 | 0.3824 | 8456.3186 | 6541.0188 | 1949.1056 | 0.4429 | 1521.25 | 773.13 | 17611207.5887 | 0.4888 | 0.1518 | 25.6 | 2.8487 |
-| 2025 | 19205.4384 | 7587.5579 | 3158.4831 | 7963.1318 | 3499.9253 | 3155.3294 | 344.5959 | 5429.3633 | 0.3919 | 9058.5201 | 6899.9765 | 2243.4021 | 0.4421 | 1533.93 | 813.85 | 20266307.6073 | 0.5029 | 0.096 | 25.08 | 2.8742 |
+| 2020 | 14687.7442 | 5610.7642 | 2516.0302 | 6369.5862 | 2729.8846 | 2374.7375 | 355.1471 | 3712.3458 | 0.3475 | 6560.9498 | 5364.6342 | 1196.3157 | 0.4467 | 1411.1 | 763.83 | 10042623.0222 | 0.4154 | 1.72 | 25.28 | 2.7469 |
+| 2021 | 17820.4595 | 6792.0125 | 2817.0829 | 7687.7995 | 3554.1078 | 3093.2784 | 460.8294 | 4634.9597 | 0.373 | 8211.3641 | 6393.4873 | 1817.8768 | 0.4608 | 1412.36 | 781.19 | 11556668.464 | 0.4709 | 1.93 | 26.01 | 2.7724 |
+| 2022 | 17881.7827 | 6686.3224 | 2870.049 | 7715.3191 | 3717.8878 | 3140.0409 | 577.847 | 4528.119 | 0.3835 | 8325.4114 | 6667.3413 | 1658.07 | 0.4656 | 1412.17 | 770.11 | 13298974.3507 | 0.4524 | 1.06 | 25.32 | 2.7978 |
+| 2023 | 17794.783 | 6962.836 | 2937.7961 | 7487.8581 | 3513.2369 | 3127.2016 | 386.0353 | 4631.2119 | 0.3732 | 7894.1509 | 6200.7352 | 1693.4158 | 0.4436 | 1410.71 | 774.61 | 15303953.6724 | 0.4254 | 0.24 | 26.03 | 2.8233 |
+| 2024 | 18505.4579 | 7277.0805 | 3049.3865 | 7728.9757 | 3497.136 | 3211.8473 | 285.2887 | 4738.1853 | 0.3625 | 8178.9909 | 6490.1921 | 1688.7988 | 0.442 | 1521.25 | 773.13 | 17611207.5887 | 0.4202 | 0.1518 | 25.6 | 2.8487 |
+| 2025 | 19205.4384 | 7587.5579 | 3158.4831 | 7963.1318 | 3499.9253 | 3155.3294 | 344.5959 | 4816.5697 | 0.3465 | 8459.3974 | 6801.3108 | 1658.0866 | 0.4405 | 1533.93 | 813.85 | 20266307.6073 | 0.3998 | 0.096 | 25.08 | 2.8742 |
 
 
 # Notes on Computation
 
+## Data Sources
 The raw data in `china_data_raw.md` comes from the following sources:
 
-1. **Original Data Sources**:
-   - World Bank World Development Indicators (WDI) for GDP components, FDI, population, and labor force
-   - Penn World Table (PWT) version 10.01 for human capital index and capital stock related variables
-   - International Monetary Fund (IMF) Fiscal Monitor for tax revenue data
+- **World Bank World Development Indicators (WDI)** for GDP components, FDI, population, and labor force
+- **Penn World Table (PWT) version 10.01** for human capital index and capital stock related variables
+- **International Monetary Fund (IMF) Fiscal Monitor** for tax revenue data
 
 This processed dataset was created by applying the following transformations to the raw data:
 
-2. **Unit Conversions**:
-   - GDP and its components (Consumption, Government, Investment, Exports, Imports) were converted from USD to billions USD
-   - Population and Labor Force were converted from people to millions of people
+## Unit Conversions
+- GDP and its components (Consumption, Government, Investment, Exports, Imports) were converted from USD to billions USD
+- Population and Labor Force were converted from people to millions of people
 
-3. **Derived Variables**:
-   - **Net Exports**: Calculated as Exports - Imports (in billions USD)
-     ```
-     Net Exports = Exports - Imports
-     ```
+## Derived Variables
+### Net Exports
+Calculated as Exports - Imports (in billions USD)
+```
+Net Exports = Exports - Imports
+```
 
-   - **Physical Capital**: Calculated using PWT data with the following formula:
-     ```
-     K_t = (rkna_t / rkna_2017) * K_2017 * (pl_gdpo_t / pl_gdpo_2017)
-     ```
-     Where:
-     - K_t is the capital stock in year t (billions USD)
-     - rkna_t is the real capital stock index in year t (from PWT)
-     - rkna_2017 is the real capital stock index in 2017 (from PWT)
-     - K_2017 is the nominal capital stock in 2017, estimated as GDP_2017 * 3.0 (capital-output ratio)
-     - pl_gdpo_t is the price level of GDP in year t (from PWT)
-     - pl_gdpo_2017 is the price level of GDP in 2017 (from PWT)
+### Physical Capital
+Calculated using PWT data with the following formula:
+```
+K_t = (rkna_t / rkna_2017) * K_2017 * (pl_gdpo_t / pl_gdpo_2017)
+```
+Where:
+- K_t is the capital stock in year t (billions USD)
+- rkna_t is the real capital stock index in year t (from PWT)
+- rkna_2017 is the real capital stock index in 2017 (from PWT)
+- K_2017 is the nominal capital stock in 2017, estimated as GDP_2017 * 3.0 (capital-output ratio)
+- pl_gdpo_t is the price level of GDP in year t (from PWT)
+- pl_gdpo_2017 is the price level of GDP in 2017 (from PWT)
 
-   - **TFP (Total Factor Productivity)**: Calculated using the Cobb-Douglas production function:
-     ```
-     TFP_t = Y_t / (K_t^alpha * (L_t * H_t)^(1-alpha))
-     ```
-     Where:
-     - Y_t is GDP in year t (billions USD)
-     - K_t is Physical Capital in year t (billions USD)
-     - L_t is Labor Force in year t (millions of people)
-     - H_t is Human Capital index in year t
-     - alpha = 0.3333333333333333 (capital share parameter)
+### TFP (Total Factor Productivity)
+Calculated using the Cobb-Douglas production function:
+```
+TFP_t = Y_t / (K_t^alpha * (L_t * H_t)^(1-alpha))
+```
+Where:
+- Y_t is GDP in year t (billions USD)
+- K_t is Physical Capital in year t (billions USD)
+- L_t is Labor Force in year t (millions of people)
+- H_t is Human Capital index in year t
+- alpha = 0.3333333333333333 (capital share parameter)
 
-4. **Extrapolation to 2025**:
-   Each series was extrapolated using the following methods:
+## Extrapolation to 2025
+Each series was extrapolated using the following methods:
 
-   - **ARIMA(1,1,1) model**: 
-     - GDP (2024-2025)
-     - Consumption (2024-2025)
-     - Government (2024-2025)
-     - Investment (2024-2025)
-     - Exports (2024-2025)
-     - Imports (2024-2025)
-     - Net Exports (2024-2025)
-   - **Average growth rate of historical data**: 
-     - FDI (% of GDP) (2024-2025)
-     - rgdpo_bn (2020-2025)
-     - rkna (2020-2025)
-     - pl_gdpo (2020-2025)
-     - cgdpo_bn (2020-2025)
-     - Physical Capital (2020-2025)
-     - K_Y_ratio (2020-2025)
-     - TFP (2020-2025)
-     - Tax Revenue (bn USD) (2024-2025)
-     - Openness Ratio (2024-2025)
-     - Saving (bn USD) (2024-2025)
-     - Private Saving (bn USD) (2024-2025)
-     - Public Saving (bn USD) (2024-2025)
-     - Saving Rate (2024-2025)
-   - **Linear regression**: 
-     - Population (2024-2025)
-     - Labor Force (2025)
-   - **IMF projections**: 
-     - TAX_pct_GDP (2024-2030): Projected using official IMF Fiscal Monitor projections
-   - **Other methods**: 
-     - Human Capital (2020-2025)
+### ARIMA(1,1,1) model
+
+- GDP (2024-2025)
+- Consumption (2024-2025)
+- Government (2024-2025)
+- Investment (2024-2025)
+- Exports (2024-2025)
+- Imports (2024-2025)
+
+### Average growth rate of historical data
+
+- FDI (% of GDP) (2024-2025)
+- rgdpo_bn (2020-2025)
+- rkna (2020-2025)
+- pl_gdpo (2020-2025)
+- cgdpo_bn (2020-2025)
+- Physical Capital (2020-2025)
+
+### Linear regression
+
+- Population (2024-2025)
+- Labor Force (2025)
+
+
+### IMF projections
+
+- TAX_pct_GDP (2024-2030): Projected using official IMF Fiscal Monitor projections
+
+
+
+
+
+### Other methods
+
+- Human Capital (2020-2025)
+
 
 Data processed with alpha=0.3333333333333333, K/Y= 3.0, source file=china_data_raw.md, end year=2025. Generated 2025-05-21.

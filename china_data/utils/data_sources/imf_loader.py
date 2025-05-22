@@ -4,13 +4,11 @@ import hashlib
 import pandas as pd
 from datetime import datetime
 
-# Handle both import scenarios (from project root or from within china_data directory)
+# Import required modules
 try:
-    # When imported from project root
     from china_data.utils import find_file
     from china_data.utils.path_constants import get_search_locations_relative_to_root
 except ImportError:
-    # When imported from within china_data directory
     from utils import find_file
     from utils.path_constants import get_search_locations_relative_to_root
 
@@ -22,10 +20,10 @@ def check_and_update_hash():
     Check if the IMF CSV file hash has changed and update the download_date.txt file if necessary.
 
     This function:
-    1. Calculates the SHA-256 hash of the IMF CSV file
-    2. Reads the current hash from download_date.txt
-    3. If the hash has changed or download_date.txt doesn't exist, updates the file with the new hash and current date
-    4. If the hash is the same, does nothing
+    - Calculates the SHA-256 hash of the IMF CSV file
+    - Reads the current hash from download_date.txt
+    - Updates the file with the new hash and current date if the hash has changed or download_date.txt doesn't exist
+    - Takes no action if the hash is the same
 
     Returns:
         bool: True if the hash was updated, False otherwise
@@ -115,7 +113,7 @@ def load_imf_tax_data():
     check_and_update_hash()
 
     imf_filename = "dataset_DEFAULT_INTEGRATION_IMF.FAD_FM_5.0.0.csv"
-    # find_file expects locations relative to project root
+    # Get the standard input file locations
     possible_locations_relative = get_search_locations_relative_to_root()["input_files"]
     imf_file = find_file(imf_filename, possible_locations_relative)
 
