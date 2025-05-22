@@ -37,36 +37,36 @@ def _prepare(df, end_year):
 def _apply_methods(df, years_to_add, cols, info):
     """
     Apply appropriate extrapolation methods to each column based on column type.
-    
+
     Args:
         df (pd.DataFrame): DataFrame containing the data
         years_to_add (list): List of years to add projections for
         cols (list): List of columns to extrapolate
         info (dict): Dictionary to store extrapolation method information
-        
+
     Returns:
         tuple: (updated DataFrame, updated info dictionary)
     """
     gdp = ['GDP_USD_bn','C_USD_bn','G_USD_bn','I_USD_bn','X_USD_bn','M_USD_bn','NX_USD_bn']
     demographic = ['POP_mn','LF_mn']
     human = ['hc']
-    
+
     for col in cols:
         if df[col].isna().all():
             continue
-            
+
         historical = df[['year', col]].dropna()
         if len(historical) == 0:
             continue
-            
+
         last_year = int(historical['year'].max())
         yrs = [y for y in range(last_year + 1, years_to_add[-1] + 1)]
         if not yrs:
             continue
-        
+
         # Determine which method to try first based on column type
         success = False
-        
+
         # For GDP-related columns, try ARIMA first
         if col in gdp:
             df_updated, success, method = extrapolate_with_arima(
@@ -76,7 +76,7 @@ def _apply_methods(df, years_to_add, cols, info):
                 df = df_updated
                 info[col] = {'method': method, 'years': yrs}
                 continue
-        
+
         # For demographic and human capital columns, try linear regression
         if (col in demographic or col in human) and not success:
             df_updated, success, method = extrapolate_with_linear_regression(
@@ -86,31 +86,26 @@ def _apply_methods(df, years_to_add, cols, info):
                 df = df_updated
                 info[col] = {'method': method, 'years': yrs}
                 continue
-        
+
         # For all columns that couldn't be extrapolated with the above methods,
         # fall back to average growth rate
         if not success:
             # For demographic data, use different default growth rates
             default_growth = 0.03  # Default for most series
             lookback = 4  # Default lookback period
-            
+
             df_updated, success, method = extrapolate_with_average_growth_rate(
                 df, col, yrs, lookback_years=lookback, default_growth=default_growth
             )
             if success:
                 df = df_updated
                 info[col] = {'method': method, 'years': yrs}
-                
+
     return df, info
 
 
 def _finalize(df, years_to_add, raw_data, cols, info, end_year):
-    for year in years_to_add:
-        if 'X_USD_bn' in df.columns and 'M_USD_bn' in df.columns:
-            x_val = df.loc[df.year == year, 'X_USD_bn'].values[0]
-            m_val = df.loc[df.year == year, 'M_USD_bn'].values[0]
-            if not pd.isna(x_val) and not pd.isna(m_val):
-                df.loc[df.year == year, 'NX_USD_bn'] = round(x_val - m_val, 4)
+    # Net exports calculation removed - this is now handled in economic_indicators.py
     key_vars = ['GDP_USD_bn','C_USD_bn','G_USD_bn','I_USD_bn','X_USD_bn','M_USD_bn','POP_mn','LF_mn','FDI_pct_GDP','TAX_pct_GDP','hc','K_USD_bn']
     for year in years_to_add:
         for col in key_vars:
