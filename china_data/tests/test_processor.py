@@ -14,23 +14,32 @@ from china_data.utils.processor_output import create_markdown_table
 from statsmodels.tsa.arima.model import ARIMA
 from sklearn.linear_model import LinearRegression
 
-RAW_MD = os.path.join(os.path.dirname(__file__), os.pardir, 'output', 'china_data_raw.md')
-
-
-def test_load_raw_data_success():
-    # Ensure the output directory and a dummy raw file exist for this test
-    # as the main script might not have run if --test is used.
-    output_dir = 'output'
+# Use a temporary file for testing
+def test_load_raw_data_success(monkeypatch, tmp_path):
+    # Create a temporary directory for the test
+    output_dir = tmp_path / 'china_data' / 'output'
     os.makedirs(output_dir, exist_ok=True)
-    dummy_raw_md_path = os.path.join(output_dir, 'china_data_raw.md')
-    if not os.path.exists(dummy_raw_md_path):
-        with open(dummy_raw_md_path, 'w') as f:
-            f.write("| Year | GDP (USD) |\n")
-            f.write("|------|-----------|\n")
-            f.write("| 2020 | 100       |\n")
+    dummy_raw_md_path = output_dir / 'china_data_raw.md'
 
-    # load_raw_data now searches standard output locations relative to project root.
-    # The test setup already ensures 'china_data_raw.md' is in 'output/china_data_raw.md'.
+    # Create a dummy markdown file
+    with open(dummy_raw_md_path, 'w') as f:
+        f.write("# China Economic Data\n\n")
+        f.write("## Economic Data (1960-present)\n\n")
+        f.write("| Year | GDP (USD) |\n")
+        f.write("|------|-----------|\n")
+        f.write("| 2020 | 100       |\n")
+
+    # Mock the find_file function to return our temporary file
+    def mock_find_file(filename, possible_locations_relative_to_root=None):
+        if filename == 'china_data_raw.md':
+            return str(dummy_raw_md_path)
+        return None
+
+    # Apply the mock
+    from china_data.utils import processor_load
+    monkeypatch.setattr(processor_load, 'find_file', mock_find_file)
+
+    # Test the function
     df = load_raw_data(input_file='china_data_raw.md')
     assert not df.empty
     assert 'GDP_USD' in df.columns
