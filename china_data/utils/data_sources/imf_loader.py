@@ -4,13 +4,9 @@ import hashlib
 import pandas as pd
 from datetime import datetime
 
-# Import required modules
-try:
-    from china_data.utils import find_file
-    from china_data.utils.path_constants import get_search_locations_relative_to_root
-except ImportError:
-    from utils import find_file
-    from utils.path_constants import get_search_locations_relative_to_root
+# Import required modules using absolute imports
+from china_data.utils import find_file
+from china_data.utils.path_constants import get_search_locations_relative_to_root
 
 logger = logging.getLogger(__name__)
 
