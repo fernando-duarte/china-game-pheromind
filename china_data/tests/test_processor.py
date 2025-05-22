@@ -151,10 +151,25 @@ def test_extrapolate_series_to_end_year(monkeypatch):
             return self
         def forecast(self, steps):
             return [1.0]*steps
-    # Import the module where ARIMA is used
+    # Import the modules where ARIMA and LinearRegression are used
+    import china_data.utils.extrapolation_methods.arima as arima_module
+    import china_data.utils.extrapolation_methods.linear_regression as linear_regression_module
+
+    # Mock the extrapolation functions to return successful results
+    def mock_extrapolate_with_arima(df, col, years, **kwargs):
+        for year in years:
+            df.loc[df.year == year, col] = 1.0
+        return df, True, "ARIMA"
+
+    def mock_extrapolate_with_linear_regression(df, col, years, **kwargs):
+        for year in years:
+            df.loc[df.year == year, col] = 1.0
+        return df, True, "Linear regression"
+
+    # Apply the mocks
     import china_data.utils.processor_extrapolation as extrapolation_module
-    monkeypatch.setattr(extrapolation_module, 'ARIMA', lambda *a, **k: Dummy())
-    monkeypatch.setattr(extrapolation_module, 'LinearRegression', lambda *a, **k: Dummy())
+    monkeypatch.setattr(extrapolation_module, 'extrapolate_with_arima', mock_extrapolate_with_arima)
+    monkeypatch.setattr(extrapolation_module, 'extrapolate_with_linear_regression', mock_extrapolate_with_linear_regression)
     out, info = extrapolate_series_to_end_year(df, end_year=2024, raw_data=df)
     assert 2024 in out['year'].values
     assert isinstance(info, dict)

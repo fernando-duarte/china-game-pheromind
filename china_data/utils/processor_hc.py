@@ -110,11 +110,20 @@ def project_human_capital(processed_data, end_year=2025):
             # Instead of returning early, we'll fall back to using the last value method
             if len(hc_data_not_na) > 0:
                 logger.info("Falling back to last value carry-forward due to insufficient data points")
-                historical = hc_data_not_na
                 years_to_project = list(range(int(last_year_with_data) + 1, end_year + 1))
-                result = _project_with_last_value(hc_data, historical, years_to_project)
-                if result is not None:
-                    return result
+
+                # Make sure all years exist in the dataframe
+                for year in years_to_project:
+                    if year not in hc_data['year'].values:
+                        hc_data = pd.concat([hc_data, pd.DataFrame({'year': [year], 'hc': [np.nan]})], ignore_index=True)
+
+                # Use average growth rate with 0 growth (equivalent to last value carry-forward)
+                df_updated, success, method = extrapolate_with_average_growth_rate(
+                    hc_data, 'hc', years_to_project, default_growth=0.0, min_data_points=1
+                )
+                if success:
+                    logger.info(f"Successfully projected human capital using {method}")
+                    return df_updated
             return hc_data
 
         # Check if we already have data up to the end year
@@ -123,7 +132,6 @@ def project_human_capital(processed_data, end_year=2025):
             return hc_data
 
         # Determine years that need projection
-        historical = hc_data_not_na
         years_to_project = list(range(int(last_year_with_data) + 1, end_year + 1))
         logger.info(f"Will project human capital for {len(years_to_project)} years: {min(years_to_project)} to {max(years_to_project)}")
 
@@ -133,11 +141,10 @@ def project_human_capital(processed_data, end_year=2025):
             return hc_data
 
         # Try linear regression as primary method
-        # Try linear regression as primary method
         df_updated, success, method = extrapolate_with_linear_regression(
             hc_data, 'hc', years_to_project, min_data_points=2
         )
-        
+
         if success:
             logger.info(f"Successfully projected human capital using {method}")
             return df_updated
@@ -148,7 +155,7 @@ def project_human_capital(processed_data, end_year=2025):
         df_updated, success, method = extrapolate_with_average_growth_rate(
             hc_data, 'hc', years_to_project, lookback_years=2, default_growth=0.01
         )
-        
+
         if success:
             logger.info(f"Successfully projected human capital using {method}")
             return df_updated
@@ -159,7 +166,7 @@ def project_human_capital(processed_data, end_year=2025):
         df_updated, success, method = extrapolate_with_average_growth_rate(
             hc_data, 'hc', years_to_project, default_growth=0.0, min_data_points=1
         )
-        
+
         if success:
             logger.info(f"Successfully projected human capital using {method}")
             return df_updated

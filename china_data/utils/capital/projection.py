@@ -112,6 +112,11 @@ def project_capital_stock(processed_data, end_year, delta=0.05):
         # Merge with original data
         result = df.copy()
 
+        # Make sure all years up to end_year exist in the result
+        for year in range(int(df['year'].min()), end_year + 1):
+            if year not in result['year'].values:
+                result = pd.concat([result, pd.DataFrame({'year': [year]})], ignore_index=True)
+
         # For each projection year, update the capital stock
         for _, row in proj_df.iterrows():
             year_mask = result['year'] == row['year']
