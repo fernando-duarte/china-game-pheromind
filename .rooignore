@@ -1,0 +1,20 @@
+# Project specific ignore patterns
+
+# Ignore china_data folder completely
+china_data/
+china_data/**
+
+# Common patterns
+*.log
+*.tmp
+.DS_Store
+node_modules/
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+build/
+*.min.js
+*.min.css
